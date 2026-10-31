@@ -1,7 +1,21 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
 
-# ===============================
-# Python
-# ===============================
+# Local source files and derived business data (never commit raw client data)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+docs/referencia/*
+!docs/referencia/.gitkeep
+
+# Python environments and caches
 .venv/
 venv/
 __pycache__/
@@ -10,47 +24,27 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# ===============================
-# Environment variables and secrets
-# ===============================
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-secrets/
-
-# ===============================
-# Private business data
-# ===============================
-data/raw/
-data/processed/
-data/private/
-
-# Excel files
-*.xlsx
-*.xls
-
-# Reference documents containing private information
-docs/referencia/
-
-# ===============================
-# Local database backups
-# ===============================
-*.dump
-*.backup
-*.bak
-*.sql.gz
-
-# ===============================
-# Power BI local files
-# ===============================
-*.pbix
-
-# ===============================
 # Logs and temporary files
-# ===============================
 *.log
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Local database files and backups
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.db
+*.sql.gz
+
+# Power BI local binary project files (DAX and documentation can be versioned)
+*.pbix
+
+# Claude local settings and working state
+.claude/settings.local.json
+.claude/worktrees/
+
+# IDE / OS
+.vscode/
+.idea/
