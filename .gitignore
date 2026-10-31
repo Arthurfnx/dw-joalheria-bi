@@ -1,0 +1,56 @@
+
+# ===============================
+# Python
+# ===============================
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ===============================
+# Environment variables and secrets
+# ===============================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ===============================
+# Private business data
+# ===============================
+data/raw/
+data/processed/
+data/private/
+
+# Excel files
+*.xlsx
+*.xls
+
+# Reference documents containing private information
+docs/referencia/
+
+# ===============================
+# Local database backups
+# ===============================
+*.dump
+*.backup
+*.bak
+*.sql.gz
+
+# ===============================
+# Power BI local files
+# ===============================
+*.pbix
+
+# ===============================
+# Logs and temporary files
+# ===============================
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
