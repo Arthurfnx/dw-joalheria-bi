@@ -1,6 +1,6 @@
 # Qualidade de dados e critérios de validação — ambiente demonstrativo
 
-**Status:** implementado (ainda **não executado** no banco). Os critérios estão em dois lugares:
+**Status:** implementado e executado no banco (execuções 2 e 3: 24/24 verificações aprovadas, 0 rejeições). Os critérios estão em dois lugares:
 - `etl/sql/demo/40_verificacoes_qualidade.sql`: função `audit_demo.executar_verificacoes(id)`, com 24 verificações gravadas em `audit_demo.resultado_validacao` a cada execução;
 - `tests/sql/01..08_*.sql`: testes independentes que falham com exceção. Cada arquivo roda em `BEGIN ... ROLLBACK` e inclui testes negativos (inserções inválidas devem falhar).
 
@@ -56,4 +56,9 @@ Nenhum registro inválido é descartado em silêncio.
 
 **Validação estática** (2026-10-31): `verificar_sql.py` analisou 29 arquivos SQL sem problemas. Um teste de mutação com 5 erros injetados (parêntese, objeto inexistente, variável ambígua, procedure sem CALL, coluna inexistente) teve os 5 detectados. O parser do PowerShell 5.1 não encontrou erros de sintaxe nos 7 scripts.
 
-**Execução no banco:** ainda não realizada (aguardando autorização para criar o banco).
+**Execução no banco** (2026-10-31, PostgreSQL 18.6, `dw_joalheria`):
+- execução 2: SUCESSO, 24/24 verificações aprovadas;
+- execução 3 (`run_tests.ps1 -ComReexecucao`): SUCESSO, 24/24, incluindo REP-01 (idempotência) e REP-02 (determinismo);
+- `audit_demo.rejeicao`: 0 linhas.
+
+A execução 1 falhou antes das verificações, por erro de sintaxe num `CALL`, corrigido em seguida (ver `docs/etl_runbook.md`).

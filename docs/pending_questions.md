@@ -2,19 +2,22 @@
 
 ## Fase 1 (demonstrativa)
 
-O plano v3.1 foi aprovado e o código foi implementado em 2026-10-31. **A próxima etapa depende de autorização do usuário.**
+A fase 1 foi executada e o relatório aprovado em 2026-11-01. Itens resolvidos e itens ainda abertos:
 
 | Item | Situação | Impacto |
 |---|---|---|
-| Criar o banco `dw_joalheria` (`scripts/criar_banco.ps1`) | **Aguardando autorização** | Bloqueia a execução real de migrations, ETL e testes |
-| Aplicar migrations e executar ETL e testes | **Aguardando autorização** | Só houve validação estática; erros de execução só aparecem no banco |
-| Usuário de banco somente leitura para o Power BI | Decisão do usuário (recomendado) | Evita que o Power BI use credenciais com permissão de escrita |
-| Métricas de associação do período completo (views SQL) ou dinâmicas por filtro de data (DAX) | Implementado: período completo | Se quiser filtrar por data, será preciso uma tabela de cestas e medidas DAX adicionais |
+| Criar o banco `dw_joalheria` | **Resolvido** (2026-10-31) | — |
+| Aplicar migrations e executar ETL e testes | **Resolvido**: 21 migrations; execuções 2 e 3 com 24/24 | — |
+| Usuário de banco somente leitura para o Power BI | **Resolvido**: `bi_leitura` criado e validado | — |
+| Qual usuário está gravado nas credenciais do Power BI Desktop | **Pendente de confirmação** (as credenciais ficam no Desktop, fora do PBIP) | Se for `postgres`, o relatório lê com um superusuário; recomenda-se `bi_leitura` |
+| Métricas de associação do período completo (views SQL) ou dinâmicas por filtro de data (DAX) | Implementado: período completo (D-035); ranking com mínimo de 5 vendas conjuntas (D-039) | Se quiser filtrar por data, será preciso uma tabela de cestas e medidas DAX adicionais |
+| Parametrização da conexão do Power BI (servidor, banco, esquema) | Melhoria futura, **não implementada** | Hoje a troca de ambiente exige editar as 12 consultas |
+| Página auxiliar "Página 1" (vazia) no relatório | Mantida; não é uma das seis páginas principais | Remover ou ocultar depende de decisão do usuário |
 | Valores dos parâmetros da simulação (volumes, período, proporções, fatores) | Sugestões em `etl/sql/demo/00_config_padrao.sql`, ajustáveis em `config_demo` | Mudar a configuração exige reset controlado |
 | Lista de tipos de peça e pesos por material | Configurável; não há restrição de tipo por material | — |
 | Obrigatoriedade de tamanho para outros tipos além de Anel (por exemplo, Aliança) | Não exigida até confirmação específica (`config_demo.tipo_peca.exige_tamanho`) | — |
 | Roubos na simulação | Desativados por padrão (`roubos_por_ano = 0`); `SAIDA_ROUBO` permanece na dimensão | Reativar exige alterar a configuração e fazer reset controlado |
-| Power BI Desktop | Instalado pelo usuário; conexão e medidas ainda não validadas | A validação depende do DW carregado |
+| Power BI Desktop | **Resolvido**: instalado; conexão, medidas e páginas conferidas contra o SQL | — |
 
 ## Fase 2 (integração real) — perguntas para o parceiro
 

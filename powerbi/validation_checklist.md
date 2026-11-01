@@ -1,48 +1,53 @@
 # Checklist de validação do Power BI contra o DW
 
-**Status:** não executado (o Power BI Desktop ainda não está instalado).
+**Status:** executado. Base: execução 3 de `audit_demo.execucao`, período completo (01/01/2024 a 31/12/2025), sem filtros.
 
-**Procedimento:**
-1. Rode cada consulta abaixo no `psql`, de preferência dentro de uma transação somente leitura.
-2. Compare o resultado com o visual indicado, sem filtros (exceto quando especificado).
-3. Registre aqui a data, a execução (`id_execucao`) e o resultado de cada item.
+**Como foi feito:**
+- **Lado SQL:** as consultas abaixo foram executadas em 2026-11-01, em `BEGIN TRANSACTION READ ONLY` … `ROLLBACK`. As conferências por página estão em `tests/reconciliacao/`.
+- **Lado Power BI:** durante a construção de cada página (2026-11-01), as medidas foram avaliadas com consultas DAX pelo Power BI Modeling MCP e comparadas manualmente com o SQL. A comparação não é automatizada.
+- **"Conferido"** = o valor DAX coincidiu com o SQL durante a construção. **"Não conferido no Power BI"** = só o lado SQL foi registrado; falta comparar com o visual.
 
 ## Pré-condições
-- [ ] `scripts/run_demo_etl.ps1` terminou com SUCESSO.
-- [ ] `scripts/run_tests.ps1 -ComReexecucao` passou.
-- [ ] O aviso "AMBIENTE DEMONSTRATIVO — DADOS SINTÉTICOS, NÃO REPRESENTAM RESULTADOS REAIS DA EMPRESA." aparece em **todas** as páginas.
-- [ ] O parâmetro `Esquema` está igual a `bi_demo`.
-- [ ] Não há relacionamento entre tabelas fato.
+- [x] `scripts/run_demo_etl.ps1` terminou com SUCESSO (execuções 2 e 3).
+- [x] `scripts/run_tests.ps1 -ComReexecucao` passou (execução 3: 24/24, REP-01 e REP-02).
+- [x] O aviso "AMBIENTE DEMONSTRATIVO — DADOS SINTÉTICOS, NÃO REPRESENTAM RESULTADOS REAIS DA EMPRESA." aparece nas seis páginas principais (conferido no PBIR).
+- [x] Conexão fixa em `localhost:5432`, banco `dw_joalheria`, esquema `bi_demo` (não há parâmetro; ver `powerbi/connection_guide.md`).
+- [x] Não há relacionamento entre tabelas fato (conferido em `relationships.tmdl`).
 
 ## Conferências numéricas
 
-| # | Indicador (visual) | Consulta SQL de referência | Resultado SQL | Resultado Power BI | OK? |
-|---|---|---|---|---|---|
-| 1 | Saldo Atual (peças), sem filtro | `SELECT sum(quantidade_em_estoque) FROM bi_demo.vw_fato_snapshot_estoque s JOIN bi_demo.vw_dim_data d USING (data_key) WHERE d.data = (SELECT max(data) FROM bi_demo.vw_dim_data d2 JOIN bi_demo.vw_fato_snapshot_estoque s2 USING (data_key));` | | | |
-| 2 | Saldo Atual por material | idem, com `JOIN bi_demo.vw_dim_produto USING (produto_key) GROUP BY material` | | | |
-| 3 | Peso em Estoque Ouro (g) | idem #1 com `sum(quantidade_em_estoque * peso_g)` e `material = 'Ouro'` | | | |
-| 4 | Entradas (peças) | `SELECT sum(quantidade) FROM bi_demo.vw_fato_movimentacao_estoque m JOIN bi_demo.vw_dim_tipo_movimentacao t USING (tipo_mov_key) WHERE t.sinal = 1;` | | | |
-| 5 | Saídas por tipo | idem com `t.sinal = -1 GROUP BY t.codigo_tipo` | | | |
-| 6 | Saldo líquido = último saldo | `SELECT sum(m.quantidade * t.sinal) FROM bi_demo.vw_fato_movimentacao_estoque m JOIN bi_demo.vw_dim_tipo_movimentacao t USING (tipo_mov_key);` deve ser igual ao #1 | | | |
-| 7 | Quantidade Comprada | `SELECT sum(quantidade_recebida) FROM bi_demo.vw_fato_compra_item;` | | | |
-| 8 | Custo Total de Aquisição | `SELECT sum(custo_total_pago) FROM bi_demo.vw_fato_compra_item;` | | | |
-| 9 | Custo Médio Ponderado de Aquisição | `SELECT sum(custo_total_pago) / sum(quantidade_recebida) FROM bi_demo.vw_fato_compra_item;` | | | |
-| 10 | Unidades Vendidas | `SELECT sum(quantidade_vendida) FROM bi_demo.vw_fato_venda_item;` | | | |
-| 11 | Faturamento Realizado | `SELECT sum(valor_realizado_total) FROM bi_demo.vw_fato_venda_item;` | | | |
-| 12 | Diferença Marcado x Realizado (R$) | `SELECT sum(diferenca_marcado_realizado) FROM bi_demo.vw_fato_venda_item;` | | | |
-| 13 | Número de Vendas (sim.) | `SELECT count(DISTINCT id_venda_sintetica) FROM bi_demo.vw_fato_venda_item;` | | | |
-| 14 | Ticket Médio (sim.) | #11 ÷ #13 | | | |
-| 15 | Faturamento por ano | `SELECT d.ano, sum(valor_realizado_total) FROM bi_demo.vw_fato_venda_item v JOIN bi_demo.vw_dim_data d USING (data_key) GROUP BY d.ano ORDER BY 1;` | | | |
-| 16 | Variação a/a do último ano | a partir do #15: (ano2 − ano1) ÷ ano1 | | | |
-| 17 | Faturamento nas janelas comerciais | `SELECT d.janela_comercial, sum(valor_realizado_total) FROM bi_demo.vw_fato_venda_item v JOIN bi_demo.vw_dim_data d USING (data_key) GROUP BY 1;` | | | |
-| 18 | Produtos sem venda no período completo | `SELECT count(*) FROM bi_demo.vw_dim_produto p WHERE NOT EXISTS (SELECT 1 FROM bi_demo.vw_fato_venda_item v WHERE v.produto_key = p.produto_key);` (comparar considerando o filtro de saldo > 0 da medida) | | | |
-| 19 | Top 3 pares por lift | `SELECT antecedente, consequente, suporte, confianca, lift FROM bi_demo.vw_associacao_tipos ORDER BY lift DESC LIMIT 3;` | | | |
-| 20 | Presentes + roubos sem faturamento | `SELECT count(*) FROM bi_demo.vw_fato_venda_item v JOIN bi_demo.vw_fato_movimentacao_estoque m USING (id_evento_origem) JOIN bi_demo.vw_dim_tipo_movimentacao t ON t.tipo_mov_key = m.tipo_mov_key WHERE NOT t.eh_venda;` deve ser 0 | | | |
+| # | Indicador | Resultado SQL | Medida / visual | Situação |
+|---|---|---|---|---|
+| 1 | Estoque atual (peças), sem filtro | 520 (31/12/2025) | `[Estoque Atual (Peças)]` | Conferido |
+| 2 | Estoque atual por material | Folheado 223; Ouro 97; Prata 200 | "Estoque por material" (páginas 1 e 2) | Não conferido no Power BI (a soma, 520, foi conferida) |
+| 3 | Peso em estoque Ouro (g) | 410,345 | `[Peso em Estoque Ouro (g)]` | Conferido |
+| 4 | Entradas (peças) | 7.380 | `[Entradas de Estoque (Peças)]` | Conferido |
+| 5 | Saídas por tipo | venda 6.819; presente 20; ajuste negativo 21 | cartões da página 5 | Conferido |
+| 6 | Saldo líquido = último saldo | 520 = #1 | `[Saldo Líquido Movimentado]` | Conferido |
+| 7 | Quantidade adquirida | 6.773 | `[Quantidade Adquirida]` | Conferido |
+| 8 | Custo total das compras | R$ 3.995.958,71 | `[Custo Total das Compras]` | Conferido |
+| 9 | Custo médio ponderado de aquisição | R$ 589,98 | `[Custo Médio Ponderado de Aquisição]` | Conferido |
+| 10 | Quantidade vendida | 6.819 | `[Quantidade Vendida]` | Conferido |
+| 11 | Receita realizada | R$ 6.701.258,34 | `[Receita Realizada]` | Conferido |
+| 12 | Diferença marcado × realizado | R$ 238.156,66 (desconto de 3,43% sobre o valor marcado) | `[Desconto sobre Valor Marcado (%)]` | Conferido (percentual) |
+| 13 | Número de vendas (sintético) | 4.415 | `[Número de Vendas]` | Conferido |
+| 14 | Ticket médio (sintético) | R$ 1.517,84 | `[Ticket Médio]` | Conferido |
+| 15 | Receita por ano | 2024: R$ 3.166.042,46; 2025: R$ 3.535.215,88 | segmentação Ano | Não conferido no Power BI |
+| 16 | Variação a/a | +11,66% (calculada a partir do #15) | — | Não há medida a/a no modelo |
+| 17 | Receita por janela comercial | Natal R$ 825.841,68; Dia das Mães R$ 234.952,75; Dia dos Namorados R$ 171.120,07; Black Friday R$ 129.840,32; demais datas R$ 5.339.503,52 | tabela "Janelas comerciais" (página 6) | Conferido (`conferir_janelas_comerciais.ps1`) |
+| 18 | Produtos sem venda no período completo | 15 (também 15 com o filtro de estoque > 0 da medida) | `[Produtos sem Venda no Período]` | Conferido |
+| 19 | Top 3 regras de tipos por lift | Pingente → Corrente 2,748333; Corrente → Pingente 2,748333; Cordão → Pingente 1,344022 | "Associação entre tipos de peça" | Não conferido no Power BI (o total de 90 regras foi conferido) |
+| 20 | Presentes e roubos sem receita | 0 itens de venda ligados a movimentos não comerciais | — | Verificação estrutural, só SQL |
+
+Conferências adicionais da página 6 (`conferir_sazonalidade_associacao.ps1`, conferidas com o Power BI): média diária R$ 15.834,36 nas janelas × R$ 8.278,30 nas demais datas (+91,3%); 3.396 regras de produtos, 52 com ≥ 5 vendas conjuntas; 10º lift do ranking 7,178862.
 
 ## Conferências qualitativas
-- [ ] Nenhum visual soma `quantidade_em_estoque` ao longo do tempo.
-- [ ] Nenhum visual soma peso com peças.
-- [ ] O faturamento usa `valor_realizado_total`, nunca o valor marcado.
-- [ ] A página 9 informa que os IDs e as afinidades são sintéticos.
-- [ ] A página 8 informa que a sazonalidade foi inserida na simulação.
-- [ ] Não há visual de clientes, margem, estoque valorizado ou giro por custo.
+- [x] Nenhum visual soma `quantidade_em_estoque` ao longo do tempo (as medidas de estoque usam o último snapshot).
+- [x] Nenhum visual soma peso com peças.
+- [x] A receita usa `valor_realizado_total`, nunca o valor marcado.
+- [x] A página 6 informa que IDs, sazonalidade e afinidades são sintéticos e que a associação não responde aos filtros.
+- [x] Não há visual de clientes, margem, estoque valorizado ou giro por custo.
+
+## Pendências de validação
+- Comparar no Power BI os itens #2, #15 e #19.
+- Os valores acima valem para a configuração e o ETL atuais; qualquer mudança exige nova conferência.

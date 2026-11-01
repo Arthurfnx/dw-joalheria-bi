@@ -3,6 +3,11 @@
 > Especificação fechada fornecida e aprovada pelo usuário em 2026-11-01
 > (atalho "sufficient-input locked-spec" da skill `powerbi-report-cli`).
 > Esta etapa cobre **somente a página 1 — Visão Geral**. As páginas 2 a 6 dependem de nova aprovação.
+>
+> **Nota (2026-11-01):** documento histórico da especificação da página 1. As páginas 2 a 6 foram
+> especificadas e aprovadas depois, diretamente na conversa, e não têm brief próprio. O estado final
+> das seis páginas está em `powerbi/report_pages.md`. Desde esta especificação, o modelo passou de
+> 8 para 50 medidas (`powerbi/measures.dax`).
 
 ## Report identity
 - Report name: relatorio_joalheria_demo

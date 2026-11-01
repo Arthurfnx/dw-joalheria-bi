@@ -1,6 +1,6 @@
 # Mapeamento de origem e transformação
 
-**Status:** fase 1 (demo) implementada em `etl/sql/demo/` e `db/views/`; ainda não executada no banco.
+**Status:** fase 1 (demo) implementada em `etl/sql/demo/` e `db/views/` e executada no banco `dw_joalheria` (ver `docs/etl_runbook.md`).
 
 ## Fase 1 — gerador sintético → staging_demo → dw_demo
 

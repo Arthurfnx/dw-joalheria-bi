@@ -2,49 +2,43 @@
 
 > **AMBIENTE DEMONSTRATIVO — DADOS SINTÉTICOS, NÃO REPRESENTAM RESULTADOS REAIS DA EMPRESA.**
 
-**Status:** guia preparado. O Power BI Desktop **já está instalado** pelo usuário, mas a **conexão e as medidas ainda não foram validadas**. O banco `dw_joalheria` ainda não foi criado nem carregado.
+**Status (2026-11-01):** conexão configurada e em uso no PBIP `powerbi/relatorio_joalheria_demo.pbip`; as 12 views foram importadas e os indicadores conferidos contra o SQL (`powerbi/validation_checklist.md`).
 
 ## Pré-requisitos
-1. PostgreSQL 18.6 local com o banco criado e carregado:
-   - `scripts/criar_banco.ps1`
-   - `scripts/run_migrations.ps1`
-   - `scripts/run_demo_etl.ps1`
-   - `scripts/run_tests.ps1` sem falhas.
-2. Power BI Desktop (já instalado). As versões recentes já incluem o conector PostgreSQL; se for solicitado um provedor, siga a orientação exibida pelo próprio Power BI.
-3. Um usuário de banco com permissão de leitura em `bi_demo`. Recomenda-se criar um usuário somente leitura, por decisão do usuário (ver `docs/pending_questions.md`).
+1. PostgreSQL 18.6 local com o banco `dw_joalheria` carregado (`scripts/run_demo_etl.ps1` com SUCESSO).
+2. Power BI Desktop com o conector PostgreSQL (incluído nas versões recentes).
+3. Perfil de leitura `bi_leitura`, criado por `db/seguranca/bi_leitura.sql`. A senha é cadastrada manualmente e nunca versionada.
 
-## Conexão
-1. **Obter dados → Banco de dados PostgreSQL.**
-2. **Servidor:** `localhost:5432` (ou `PGHOST:PGPORT` do `.env`). **Banco de dados:** `dw_joalheria`.
-3. **Modo de conectividade:** **Importar**.
-4. **Credenciais:** autenticação de banco de dados. Não salve a senha em arquivos versionados.
-5. No navegador, selecione **somente as views da schema `bi_demo`**:
+## Abrir o relatório existente
+1. Abrir `powerbi\relatorio_joalheria_demo.pbip` no Power BI Desktop.
+2. Na primeira atualização, informar as credenciais de **banco de dados** para `localhost:5432;dw_joalheria`. Usar `bi_leitura`.
+3. **Atualizar** relê as 12 views.
 
-| View | Nome sugerido no modelo |
+As credenciais ficam no Power BI Desktop do usuário, não no PBIP. **Pendente de confirmação:** qual usuário está gravado hoje nessas credenciais (`bi_leitura` é o previsto; o ETL usa `postgres`).
+
+## Configuração implementada
+
+| Item | Valor |
 |---|---|
-| `bi_demo.vw_dim_produto` | `dim_produto` |
-| `bi_demo.vw_dim_data` | `dim_data` |
-| `bi_demo.vw_dim_tipo_movimentacao` | `dim_tipo_movimentacao` |
-| `bi_demo.vw_fato_compra_item` | `fato_compra_item` |
-| `bi_demo.vw_fato_venda_item` | `fato_venda_item` |
-| `bi_demo.vw_fato_movimentacao_estoque` | `fato_movimentacao_estoque` |
-| `bi_demo.vw_fato_snapshot_estoque` | `fato_snapshot_estoque` |
-| `bi_demo.vw_preco_ouro` | `preco_ouro` |
-| `bi_demo.vw_associacao_tipos` | `associacao_tipos` |
-| `bi_demo.vw_associacao_produtos` | `associacao_produtos` |
-| `bi_demo.vw_info_ambiente` | `info_ambiente` |
+| Função M | `PostgreSQL.Database("localhost:5432", "dw_joalheria")` em cada uma das 12 consultas |
+| Esquema | `bi_demo`, fixo em cada consulta |
+| Modo | Importar |
+| Parâmetros | nenhum |
 
-Não importe tabelas de `staging_demo`, `config_demo` ou `audit_demo`, nem tabelas de `dw_demo` diretamente. O consumo é sempre pelas views.
+Views importadas (nome no modelo = `bi_demo vw_<view>`):
+`vw_dim_produto`, `vw_dim_data`, `vw_dim_tipo_movimentacao`, `vw_fato_compra_item`, `vw_fato_venda_item`,
+`vw_fato_movimentacao_estoque`, `vw_fato_snapshot_estoque`, `vw_associacao_produtos`, `vw_associacao_tipos`,
+`vw_preco_ouro`, `vw_preco_ouro_versoes`, `vw_info_ambiente`.
 
-## Parâmetro de ambiente (preparação para a fase 2)
-- Crie o parâmetro **`Esquema`** (texto) com o valor `bi_demo`.
-- No Editor do Power Query, substitua o nome fixo da schema pelo parâmetro em cada consulta, por exemplo `Fonte{[Schema=Esquema, Item="vw_dim_produto"]}[Data]`.
-- Na fase 2, as views reais terão os **mesmos nomes de colunas** em uma schema própria. A troca de ambiente será feita apenas pelo parâmetro. **Nunca** combine (append) dados demo e reais.
+Não são importadas tabelas de `staging_demo`, `config_demo`, `audit_demo` nem de `dw_demo`: o consumo é sempre pelas views de `bi_demo`, e `bi_leitura` só tem acesso a elas.
 
-## Atualização
-- **Atualizar** no Power BI Desktop relê as views.
-- Antes de atualizar, rode `scripts/run_demo_etl.ps1`. Ele é idempotente: sem mudança de configuração, nada muda.
+## Parametrização (melhoria futura, não implementada)
+Hoje, trocar de servidor, banco ou esquema exige editar as 12 consultas. Uma melhoria futura é criar parâmetros (servidor, banco, esquema) no Power Query. Na fase 2, as views reais devem manter os mesmos nomes de colunas, e dados demo e reais **nunca** devem ser combinados (append).
+
+## Atualização dos dados
+- Sem mudança de configuração, `scripts/run_demo_etl.ps1` é idempotente: o DW não muda e a atualização do Power BI devolve os mesmos números.
+- Depois de qualquer mudança no DW, rodar novamente `tests/reconciliacao/` e o checklist de validação.
 
 ## Segurança
-- **Não versionar:** `.pbix`, que já está no `.gitignore`, nem credenciais.
-- O arquivo PBIX só deve ser declarado funcional após a validação de `powerbi/validation_checklist.md`.
+- Não versionar `.pbix`, credenciais nem `.env`.
+- O ambiente demo não é produção: o administrador `postgres` é usado pelo ETL e pelas conferências; o Power BI deve ler com `bi_leitura`.

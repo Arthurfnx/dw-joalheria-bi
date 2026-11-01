@@ -10,7 +10,8 @@ Toda comunicação, documentação, comentários e instruções devem estar em p
 
 ## Estado conhecido (não presumir além disto)
 
-- Ambiente (informado pelo usuário em 2026-10-31 e conferido): Windows 11 Pro; Git/GitHub configurados; Python 3.14.10; **PostgreSQL 18.6 instalado**, com o serviço `postgresql-x64-18` em execução. Docker não será usado. Power BI Desktop ainda não está instalado; **a instalação será feita pelo usuário**.
+- Ambiente (informado pelo usuário em 2026-10-31 e conferido): Windows 11 Pro; Git/GitHub configurados; Python 3.14.10; **PostgreSQL 18.6 instalado**, com o serviço `postgresql-x64-18` em execução. Docker não será usado. Power BI Desktop **instalado pelo usuário** (conferido em 2026-11-01).
+- Fase 1 executada e aprovada em 2026-11-01: banco `dw_joalheria` carregado (execuções 2 e 3 com 24/24 verificações), relatório PBIP `powerbi/relatorio_joalheria_demo.pbip` com 6 páginas. Estado detalhado em `README.md` e `docs/etl_runbook.md`.
 - O `psql` pode não estar no PATH da sessão; os scripts devem aceitar `PG_BIN` (por exemplo, `C:\Program Files\PostgreSQL\18\bin`). Não instalar nem reinstalar Python ou PostgreSQL.
 - As fontes reais em `data/raw/` foram inspecionadas (ver `docs/source_inventory.md`): `Tabela de preços de Folheados e prata.xlsx` (abas FOLHEADOS, RAMON - PEÇAS e CATEGORIAS) e `CLS Tabela por indice Excel (…).xlsx`. Não existe arquivo separado de compras nem de vendas: esses dados aparecem como colunas da planilha de estoque.
 - A fonte real de vendas não possui identificador de transação.

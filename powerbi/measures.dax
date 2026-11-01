@@ -1,172 +1,527 @@
 // =============================================================================
-// measures.dax — medidas do modelo semântico DEMONSTRATIVO (dados SINTÉTICOS).
-// Tabelas do modelo (importadas das views bi_demo, renomeadas sem o prefixo vw_):
-//   dim_produto, dim_data (marcada como tabela de datas em dim_data[data]),
-//   dim_tipo_movimentacao, fato_compra_item, fato_venda_item,
-//   fato_movimentacao_estoque, fato_snapshot_estoque, preco_ouro,
-//   associacao_tipos, associacao_produtos, info_ambiente.
-// Convenções: quantidades em PEÇAS; valores em R$; peso (g) nunca somado a peças.
-// Medidas comerciais -> fato_venda_item. Medidas físicas -> movimentação/snapshot.
-// Status: Power BI Desktop já instalado; conexão e medidas AINDA NÃO validadas (o DW ainda não foi carregado).
+// measures.dax — EXPORTAÇÃO das medidas do modelo semântico (somente documentação)
+//
+// Fonte da verdade: powerbi/relatorio_joalheria_demo.SemanticModel/definition/tables/Medidas.tmdl
+// Este arquivo NÃO é lido pelo Power BI. Para alterar uma medida, altere o modelo
+// (Power BI Desktop ou Power BI Modeling MCP), salve o PBIP e exporte de novo.
+// Medidas exportadas: 50. Tabela: Medidas. Ambiente DEMONSTRATIVO (dados sintéticos).
+// Nomes de tabela como no modelo: 'bi_demo vw_<view>' (views do esquema bi_demo).
 // =============================================================================
 
-// ---------------------------------------------------------------- Ambiente
-Aviso Ambiente =
-SELECTEDVALUE ( info_ambiente[aviso], "AMBIENTE DEMONSTRATIVO — DADOS SINTÉTICOS, NÃO REPRESENTAM RESULTADOS REAIS DA EMPRESA." )
+DEFINE
 
-// ---------------------------------------------------------------- Estoque (snapshot — semiaditivo)
-// Saldo no último snapshot existente dentro do período filtrado. Não soma no tempo.
-Saldo Atual (peças) =
-CALCULATE (
-    SUM ( fato_snapshot_estoque[quantidade_em_estoque] ),
-    LASTNONBLANK ( dim_data[data], CALCULATE ( COUNTROWS ( fato_snapshot_estoque ) ) )
-)
+    // -------------------------------------------------------------------------
+    // Pasta: 01 - Vendas
+    // -------------------------------------------------------------------------
 
-// Somente Ouro; resultado em gramas (não misturar com peças).
-Peso em Estoque Ouro (g) =
-CALCULATE (
-    SUMX ( fato_snapshot_estoque, fato_snapshot_estoque[quantidade_em_estoque] * RELATED ( dim_produto[peso_g] ) ),
-    dim_produto[material] = "Ouro",
-    LASTNONBLANK ( dim_data[data], CALCULATE ( COUNTROWS ( fato_snapshot_estoque ) ) )
-)
+    // Soma de valor_realizado_total (valor efetivamente cobrado por item de venda, já multiplicado pela quantidade) em bi_demo.vw_fato_venda_item. Unidade: R$. Dados sintéticos da demo (SINTETICO_DEMO); não representam resultados reais da empresa.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Receita Realizada] =
+        SUM(
+            'bi_demo vw_fato_venda_item'[valor_realizado_total]
+        )
 
-Produtos com Estoque =
-CALCULATE (
-    COUNTROWS ( FILTER ( VALUES ( dim_produto[produto_key] ), [Saldo Atual (peças)] > 0 ) )
-)
+    // Texto formatado de Receita Realizada (R$ com duas casas, padrão pt-BR) para cartões e títulos. Retorna vazio quando não há receita. Por ser texto, não usar em gráficos nem para ordenar.
+    // Formato: (texto / padrão)
+    MEASURE 'Medidas'[Receita Realizada (Exibição)] =
+        VAR _valor = [Receita Realizada]
+        RETURN
+            IF(
+                ISBLANK(_valor),
+                BLANK(),
+                FORMAT(_valor, "R$ #,##0.00", "pt-BR")
+            )
 
-// ---------------------------------------------------------------- Movimentações (sinal pela dimensão)
-Entradas (peças) =
-CALCULATE ( SUM ( fato_movimentacao_estoque[quantidade] ), dim_tipo_movimentacao[sinal] = 1 )
+    // Soma de quantidade_vendida em bi_demo.vw_fato_venda_item. Unidade: peças (não mistura com peso). Inclui apenas vendas; perdas e presentes não entram. Dados sintéticos da demo.
+    // Formato: #,0
+    MEASURE 'Medidas'[Quantidade Vendida] =
+        SUM(
+            'bi_demo vw_fato_venda_item'[quantidade_vendida]
+        )
 
-Saídas (peças) =
-CALCULATE ( SUM ( fato_movimentacao_estoque[quantidade] ), dim_tipo_movimentacao[sinal] = -1 )
+    // Contagem distinta de id_venda_sintetica em bi_demo.vw_fato_venda_item. O identificador de venda é artificial e só existe no ambiente demonstrativo; a fonte real não possui identificador de transação, portanto esta medida não deve ser reutilizada sobre dados reais.
+    // Formato: #,0
+    MEASURE 'Medidas'[Número de Vendas] =
+        DISTINCTCOUNT(
+            'bi_demo vw_fato_venda_item'[id_venda_sintetica]
+        )
 
-Saldo Líquido Movimentado (peças) =
-SUMX ( fato_movimentacao_estoque, fato_movimentacao_estoque[quantidade] * RELATED ( dim_tipo_movimentacao[sinal] ) )
+    // Receita Realizada dividida por Número de Vendas (DIVIDE, retorna vazio se não houver vendas). Unidade: R$ por venda. Depende do identificador sintético de venda: válido somente no ambiente demonstrativo.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Ticket Médio] =
+        DIVIDE(
+            [Receita Realizada],
+            [Número de Vendas]
+        )
 
-Entradas por Compra (peças) =
-CALCULATE ( SUM ( fato_movimentacao_estoque[quantidade] ), dim_tipo_movimentacao[codigo_tipo] = "ENTRADA_COMPRA" )
+    // Texto formatado de Número de Vendas (separador de milhar pt-BR), para cartões e títulos. Retorna vazio quando não há vendas. Herda a limitação do identificador sintético de venda.
+    // Formato: (texto / padrão)
+    MEASURE 'Medidas'[Número de Vendas (Exibição)] =
+        VAR _valor = [Número de Vendas]
+        RETURN
+            IF(
+                ISBLANK(_valor),
+                BLANK(),
+                FORMAT(_valor, "#,##0", "pt-BR")
+            )
 
-Saídas por Venda (peças) =
-CALCULATE ( SUM ( fato_movimentacao_estoque[quantidade] ), dim_tipo_movimentacao[codigo_tipo] = "SAIDA_VENDA" )
+    // Texto formatado de Ticket Médio (R$ com duas casas, padrão pt-BR), para cartões e títulos. Retorna vazio quando não há vendas. Herda a limitação do identificador sintético de venda.
+    // Formato: (texto / padrão)
+    MEASURE 'Medidas'[Ticket Médio (Exibição)] =
+        VAR _valor = [Ticket Médio]
+        RETURN
+            IF(
+                ISBLANK(_valor),
+                BLANK(),
+                FORMAT(_valor, "R$ #,##0.00", "pt-BR")
+            )
 
-// Presentes e roubos: reduzem estoque, NÃO geram faturamento.
-Saídas Não Comerciais (peças) =
-CALCULATE (
-    SUM ( fato_movimentacao_estoque[quantidade] ),
-    dim_tipo_movimentacao[codigo_tipo] IN { "SAIDA_PRESENTE", "SAIDA_ROUBO" }
-)
+    // Texto formatado de Quantidade Vendida com o sufixo 'peças', para cartões e títulos. Retorna vazio quando não há vendas. Por ser texto, não usar em gráficos nem para ordenar.
+    // Formato: (texto / padrão)
+    MEASURE 'Medidas'[Quantidade Vendida (Exibição)] =
+        VAR _valor = [Quantidade Vendida]
+        RETURN
+            IF(
+                ISBLANK(_valor),
+                BLANK(),
+                FORMAT(_valor, "#,##0", "pt-BR") & " peças"
+            )
 
-Ajustes Líquidos (peças) =
-CALCULATE (
-    [Saldo Líquido Movimentado (peças)],
-    dim_tipo_movimentacao[natureza] = "ajuste"
-)
+    // Produtos com estoque positivo na posição mais recente do período e nenhuma venda dentro do período selecionado (catálogo de indicadores: Produtos sem venda). Depende sempre do filtro de datas; sem filtro, considera 2024-2025 inteiro. Unidade: produtos.
+    // Formato: #,0
+    MEASURE 'Medidas'[Produtos sem Venda no Período] =
+        VAR _data = [Data da Posição de Estoque]
+        RETURN
+            IF(
+                ISBLANK( _data ),
+                BLANK(),
+                COUNTROWS(
+                    FILTER(
+                        VALUES( 'bi_demo vw_dim_produto'[produto_key] ),
+                        ISBLANK( [Quantidade Vendida] )
+                            && CALCULATE(
+                                SUM( 'bi_demo vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+                                REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                                'bi_demo vw_dim_data'[data] = _data
+                            ) > 0
+                    )
+                ) + 0
+            )
 
-// ---------------------------------------------------------------- Compras e custos
-Quantidade Comprada (peças) =
-SUM ( fato_compra_item[quantidade_recebida] )
+    // Soma de valor_marcado_total (preço de etiqueta × quantidade) dos itens vendidos. Não é faturamento: serve de base para comparar com a Receita Realizada. Unidade: R$.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Valor Marcado Vendido] =
+        SUM( 'bi_demo vw_fato_venda_item'[valor_marcado_total] )
 
-Custo Total de Aquisição (R$) =
-SUM ( fato_compra_item[custo_total_pago] )
+    // Receita Realizada exibida somente para os 10 produtos de maior receita dentro dos filtros da página; usada no ranking de produtos por receita. Empates na 10ª posição podem exibir mais de 10 produtos.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Receita - Top 10 Produtos] =
+        VAR _produtoAtual = SELECTEDVALUE( 'bi_demo vw_dim_produto'[descricao] )
+        VAR _top =
+            TOPN(
+                10,
+                FILTER(
+                    ALLSELECTED( 'bi_demo vw_dim_produto'[descricao] ),
+                    [Receita Realizada] > 0
+                ),
+                [Receita Realizada], DESC
+            )
+        RETURN
+            IF(
+                NOT ISBLANK( _produtoAtual ) && _produtoAtual IN _top,
+                [Receita Realizada]
+            )
 
-// Média dos custos de COMPRA ponderada pelas quantidades adquiridas.
-// NÃO é custo das mercadorias vendidas (CMV) nem valorização contábil do estoque.
-Custo Médio Ponderado de Aquisição (R$/peça) =
-DIVIDE ( [Custo Total de Aquisição (R$)], [Quantidade Comprada (peças)] )
+    // -------------------------------------------------------------------------
+    // Pasta: 02 - Compras
+    // -------------------------------------------------------------------------
 
-// Somente Ouro/Prata (Folheado não tem preço sugerido pela fórmula do ouro).
-Preço Sugerido Médio (R$/peça) =
-VAR _base = FILTER ( fato_compra_item, NOT ISBLANK ( fato_compra_item[preco_sugerido_unitario] ) )
-RETURN
-    DIVIDE (
-        SUMX ( _base, fato_compra_item[preco_sugerido_unitario] * fato_compra_item[quantidade_recebida] ),
-        SUMX ( _base, fato_compra_item[quantidade_recebida] )
-    )
+    // Soma de custo_total_pago dos itens de entrada de compra (bi_demo.vw_fato_compra_item). O custo pertence à entrada de compra, não ao cadastro do produto. Unidade: R$. Dados sintéticos da demo; não é CMV.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Custo Total das Compras] =
+        SUM( 'bi_demo vw_fato_compra_item'[custo_total_pago] )
 
-Preço Marcado Médio na Entrada (R$/peça) =
-DIVIDE (
-    SUMX ( fato_compra_item, fato_compra_item[preco_venda_marcado_unitario] * fato_compra_item[quantidade_recebida] ),
-    [Quantidade Comprada (peças)]
-)
+    // Soma de quantidade_recebida dos itens de entrada de compra. Unidade: peças (não é peso). Não inclui saldo inicial nem outras movimentações de estoque.
+    // Formato: #,0
+    MEASURE 'Medidas'[Quantidade Adquirida] =
+        SUM( 'bi_demo vw_fato_compra_item'[quantidade_recebida] )
 
-Número de Entradas (sim.) =
-DISTINCTCOUNT ( fato_compra_item[id_entrada_sintetica] )
+    // Contagem distinta de id_entrada_sintetica (entradas de compra). O identificador é artificial e existe somente no ambiente demonstrativo. Unidade: entradas.
+    // Formato: #,0
+    MEASURE 'Medidas'[Entradas de Compra] =
+        DISTINCTCOUNT( 'bi_demo vw_fato_compra_item'[id_entrada_sintetica] )
 
-// ---------------------------------------------------------------- Vendas e faturamento
-Unidades Vendidas (peças) =
-SUM ( fato_venda_item[quantidade_vendida] )
+    // SUM(custo_total_pago) ÷ SUM(quantidade_recebida): custo médio de aquisição por peça, ponderado pela quantidade. Não soma custos unitários. NÃO é CMV nem valorização contábil do estoque; margem não é calculada. Em uma linha de compra isolada equivale ao custo unitário da linha. Unidade: R$ por peça.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Custo Médio Ponderado de Aquisição] =
+        DIVIDE( [Custo Total das Compras], [Quantidade Adquirida] )
 
-// Faturamento = valor EFETIVAMENTE REALIZADO das vendas válidas.
-Faturamento Realizado (R$) =
-SUM ( fato_venda_item[valor_realizado_total] )
+    // Custo Total das Compras exibido somente para os 10 produtos de maior custo de aquisição dentro dos filtros da página; usado no ranking. Empates na 10ª posição podem exibir mais de 10 produtos.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Custo Total - Top 10 Produtos] =
+        VAR _produtoAtual = SELECTEDVALUE( 'bi_demo vw_dim_produto'[descricao] )
+        VAR _top =
+            TOPN(
+                10,
+                FILTER(
+                    ALLSELECTED( 'bi_demo vw_dim_produto'[descricao] ),
+                    [Custo Total das Compras] > 0
+                ),
+                [Custo Total das Compras], DESC
+            )
+        RETURN
+            IF(
+                NOT ISBLANK( _produtoAtual ) && _produtoAtual IN _top,
+                [Custo Total das Compras]
+            )
 
-// Valor pelo preço marcado — NÃO é faturamento.
-Valor Marcado Vendido (R$) =
-SUM ( fato_venda_item[valor_marcado_total] )
+    // -------------------------------------------------------------------------
+    // Pasta: 03 - Estoque
+    // -------------------------------------------------------------------------
 
-// Positiva = desconto; negativa = venda acima do marcado.
-Diferença Marcado x Realizado (R$) =
-SUM ( fato_venda_item[diferenca_marcado_realizado] )
+    // Saldo de estoque em peças na posição (snapshot) mais recente disponível dentro do filtro de datas. Soma os produtos de uma única data de posição; nunca soma snapshots de datas diferentes. As posições são mensais (último dia do mês); se o período filtrado não contiver um fim de mês, retorna vazio. Unidade: peças (não é peso). Dados sintéticos da demo.
+    // Formato: #,0
+    MEASURE 'Medidas'[Estoque Atual (Peças)] =
+        VAR _ultimaPosicao =
+            LASTNONBLANK(
+                'bi_demo vw_dim_data'[data],
+                CALCULATE( COUNTROWS( 'bi_demo vw_fato_snapshot_estoque' ) )
+            )
+        RETURN
+            CALCULATE(
+                SUM( 'bi_demo vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+                _ultimaPosicao
+            )
 
-Diferença Marcado x Realizado (%) =
-DIVIDE ( [Diferença Marcado x Realizado (R$)], [Valor Marcado Vendido (R$)] )
+    // Data da posição de estoque (snapshot) mais recente dentro do filtro de datas, a mesma usada por Estoque Atual (Peças). Use para identificar a referência do saldo exibido.
+    // Formato: dd/MM/yyyy
+    MEASURE 'Medidas'[Data da Posição de Estoque] =
+        CALCULATE(
+            LASTNONBLANK(
+                'bi_demo vw_dim_data'[data],
+                CALCULATE( COUNTROWS( 'bi_demo vw_fato_snapshot_estoque' ) )
+            )
+        )
 
-Itens Vendidos Abaixo do Marcado =
-CALCULATE ( COUNTROWS ( fato_venda_item ), FILTER ( fato_venda_item, fato_venda_item[diferenca_marcado_realizado] > 0 ) )
+    // Quantidade de produtos no cadastro (vw_dim_produto) dentro dos filtros de Material e Tipo de peça. Não depende de datas. Unidade: produtos. Dados sintéticos da demo.
+    // Formato: #,0
+    MEASURE 'Medidas'[Produtos Cadastrados] =
+        COUNTROWS( 'bi_demo vw_dim_produto' )
 
-Itens Vendidos Acima do Marcado =
-CALCULATE ( COUNTROWS ( fato_venda_item ), FILTER ( fato_venda_item, fato_venda_item[diferenca_marcado_realizado] < 0 ) )
+    // Quantidade de produtos com saldo igual a zero na posição de estoque mais recente do período filtrado (mesma data de Estoque Atual (Peças)). Produtos sem linha de snapshot nessa data não são contados. Unidade: produtos.
+    // Formato: #,0
+    MEASURE 'Medidas'[Produtos sem Estoque] =
+        VAR _data = [Data da Posição de Estoque]
+        RETURN
+            IF(
+                ISBLANK( _data ),
+                BLANK(),
+                COUNTROWS(
+                    FILTER(
+                        VALUES( 'bi_demo vw_dim_produto'[produto_key] ),
+                        VAR _qtd =
+                            CALCULATE(
+                                SUM( 'bi_demo vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+                                REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                                'bi_demo vw_dim_data'[data] = _data
+                            )
+                        RETURN NOT ISBLANK( _qtd ) && _qtd = 0
+                    )
+                ) + 0
+            )
 
-// IDs de venda ARTIFICIAIS: válidos somente na simulação.
-Número de Vendas (sim.) =
-DISTINCTCOUNT ( fato_venda_item[id_venda_sintetica] )
+    // Soma de quantidade_em_estoque × peso_g dos produtos de Ouro na posição de estoque mais recente do período filtrado (catálogo de indicadores: Peso em estoque (Ouro)). Unidade: gramas de peças de ouro (peso bruto da peça, não teor de ouro puro). Nunca é somado a peças. Vazio se o filtro de Material excluir Ouro.
+    // Formato: #,0.0
+    MEASURE 'Medidas'[Peso em Estoque Ouro (g)] =
+        VAR _data = [Data da Posição de Estoque]
+        RETURN
+            IF(
+                ISBLANK( _data ),
+                BLANK(),
+                CALCULATE(
+                    SUMX(
+                        'bi_demo vw_fato_snapshot_estoque',
+                        'bi_demo vw_fato_snapshot_estoque'[quantidade_em_estoque]
+                            * RELATED( 'bi_demo vw_dim_produto'[peso_g] )
+                    ),
+                    REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                    'bi_demo vw_dim_data'[data] = _data,
+                    KEEPFILTERS( 'bi_demo vw_dim_produto'[material] = "Ouro" )
+                )
+            )
 
-Ticket Médio por Venda (sim.) =
-DIVIDE ( [Faturamento Realizado (R$)], [Número de Vendas (sim.)] )
+    // Estoque Atual (Peças) exibido somente para os 10 produtos com maior saldo na posição mais recente, dentro dos filtros da página; usado no ranking de estoque. Empates na 10ª posição podem exibir mais de 10 produtos.
+    // Formato: #,0
+    MEASURE 'Medidas'[Estoque Atual - Top 10 Produtos] =
+        VAR _produtoAtual = SELECTEDVALUE( 'bi_demo vw_dim_produto'[descricao] )
+        VAR _top =
+            TOPN(
+                10,
+                FILTER(
+                    ALLSELECTED( 'bi_demo vw_dim_produto'[descricao] ),
+                    [Estoque Atual (Peças)] > 0
+                ),
+                [Estoque Atual (Peças)], DESC
+            )
+        RETURN
+            IF(
+                NOT ISBLANK( _produtoAtual ) && _produtoAtual IN _top,
+                [Estoque Atual (Peças)]
+            )
 
-Itens por Venda (sim.) =
-DIVIDE ( [Unidades Vendidas (peças)], [Número de Vendas (sim.)] )
+    // -------------------------------------------------------------------------
+    // Pasta: 03 - Estoque\Movimentações
+    // -------------------------------------------------------------------------
 
-// ---------------------------------------------------------------- Comparação entre períodos
-Faturamento Ano Anterior (R$) =
-CALCULATE ( [Faturamento Realizado (R$)], SAMEPERIODLASTYEAR ( dim_data[data] ) )
+    // Soma de quantidade dos eventos de movimentação (sempre positiva na fato), sem sinal. Use para volume movimentado por tipo; para entradas menos saídas use Saldo Líquido Movimentado. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Peças Movimentadas] =
+        SUM( 'bi_demo vw_fato_movimentacao_estoque'[quantidade] )
 
-Variação Faturamento a/a (%) =
-VAR _atual = [Faturamento Realizado (R$)]
-VAR _anterior = [Faturamento Ano Anterior (R$)]
-RETURN IF ( NOT ISBLANK ( _anterior ) && _anterior <> 0, DIVIDE ( _atual - _anterior, _anterior ) )
+    // Quantidade de eventos (linhas) de movimentação de estoque. Unidade: eventos.
+    // Formato: #,0
+    MEASURE 'Medidas'[Eventos de Movimentação] =
+        COUNTROWS( 'bi_demo vw_fato_movimentacao_estoque' )
 
-Unidades Vendidas Ano Anterior (peças) =
-CALCULATE ( [Unidades Vendidas (peças)], SAMEPERIODLASTYEAR ( dim_data[data] ) )
+    // Peças dos tipos de movimentação com sinal +1 (saldo inicial, entrada por compra e ajuste positivo). O sinal vem exclusivamente de vw_dim_tipo_movimentacao. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Entradas de Estoque (Peças)] =
+        CALCULATE(
+            [Peças Movimentadas],
+            KEEPFILTERS( 'bi_demo vw_dim_tipo_movimentacao'[sinal] = 1 )
+        )
 
-Variação Unidades a/a (%) =
-VAR _atual = [Unidades Vendidas (peças)]
-VAR _anterior = [Unidades Vendidas Ano Anterior (peças)]
-RETURN IF ( NOT ISBLANK ( _anterior ) && _anterior <> 0, DIVIDE ( _atual - _anterior, _anterior ) )
+    // Peças dos tipos de movimentação com sinal -1 (venda, presente, roubo e ajuste negativo), em valor positivo. Saída não é sinônimo de venda. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Saídas de Estoque (Peças)] =
+        CALCULATE(
+            [Peças Movimentadas],
+            KEEPFILTERS( 'bi_demo vw_dim_tipo_movimentacao'[sinal] = -1 )
+        )
 
-Quantidade Comprada Ano Anterior (peças) =
-CALCULATE ( [Quantidade Comprada (peças)], SAMEPERIODLASTYEAR ( dim_data[data] ) )
+    // Σ (quantidade × sinal do tipo de movimentação) no contexto filtrado: entradas positivas, saídas negativas. É variação, não saldo. Unidade: peças.
+    // Formato: #,0;-#,0;0
+    MEASURE 'Medidas'[Saldo Líquido Movimentado] =
+        SUMX(
+            'bi_demo vw_fato_movimentacao_estoque',
+            'bi_demo vw_fato_movimentacao_estoque'[quantidade]
+                * RELATED( 'bi_demo vw_dim_tipo_movimentacao'[sinal] )
+        )
 
-// ---------------------------------------------------------------- Produtos sem movimentação
-// Produtos com estoque no fim do período e sem nenhuma venda no período filtrado.
-Produtos sem Venda no Período =
-COUNTROWS (
-    FILTER (
-        VALUES ( dim_produto[produto_key] ),
-        [Saldo Atual (peças)] > 0 && ISBLANK ( [Unidades Vendidas (peças)] )
-    )
-)
+    // Peças recebidas por compra segundo os eventos de movimentação (tipo ENTRADA_COMPRA). Reconcilia com Quantidade Adquirida da fato de compras. Não inclui saldo inicial. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Entradas por Compra (Peças)] =
+        CALCULATE(
+            [Peças Movimentadas],
+            KEEPFILTERS( 'bi_demo vw_dim_tipo_movimentacao'[codigo_tipo] = "ENTRADA_COMPRA" )
+        )
 
-// Dias entre a última venda (até o fim do período filtrado) e o fim do período.
-Dias desde a Última Venda =
-VAR _fim = MAX ( dim_data[data] )
-VAR _ultima =
-    CALCULATE ( MAX ( fato_venda_item[data_hora_venda] ), FILTER ( ALL ( dim_data ), dim_data[data] <= _fim ) )
-RETURN IF ( NOT ISBLANK ( _ultima ), DATEDIFF ( _ultima, _fim, DAY ) )
+    // Peças saídas por venda segundo os eventos de movimentação (tipo SAIDA_VENDA). Reconcilia com Quantidade Vendida da fato de vendas; responde ao filtro Tipo de movimentação. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Saídas por Venda (Peças)] =
+        CALCULATE(
+            [Peças Movimentadas],
+            KEEPFILTERS( 'bi_demo vw_dim_tipo_movimentacao'[codigo_tipo] = "SAIDA_VENDA" )
+        )
 
-// ---------------------------------------------------------------- Preço do ouro (SINTÉTICO)
-// Unidade NAO_CONFIRMADA_DEMO: não é cotação oficial.
-Preço do Ouro 1000 Médio (sim.) =
-AVERAGE ( preco_ouro[preco_ouro_1000] )
+    // Peças saídas como presente (tipo SAIDA_PRESENTE). Reduz estoque, mas não gera faturamento. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Saídas por Presente (Peças)] =
+        CALCULATE(
+            [Peças Movimentadas],
+            KEEPFILTERS( 'bi_demo vw_dim_tipo_movimentacao'[codigo_tipo] = "SAIDA_PRESENTE" )
+        )
+
+    // Peças acrescidas por ajuste positivo de inventário (tipo AJUSTE_POSITIVO). Não é compra nem receita. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Ajustes Positivos (Peças)] =
+        CALCULATE(
+            [Peças Movimentadas],
+            KEEPFILTERS( 'bi_demo vw_dim_tipo_movimentacao'[codigo_tipo] = "AJUSTE_POSITIVO" )
+        )
+
+    // Peças baixadas por ajuste negativo de inventário (tipo AJUSTE_NEGATIVO), em valor positivo. Não é venda. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Ajustes Negativos (Peças)] =
+        CALCULATE(
+            [Peças Movimentadas],
+            KEEPFILTERS( 'bi_demo vw_dim_tipo_movimentacao'[codigo_tipo] = "AJUSTE_NEGATIVO" )
+        )
+
+    // Saldo reconstruído pela soma acumulada de todas as movimentações (com sinal) desde a implantação até a última data do filtro, ignorando o filtro de tipo de movimentação. Serve para reconciliar com Estoque Atual (Peças) dos snapshots (520 peças em 31/12/2025). Não soma saldos de meses diferentes. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Saldo Acumulado por Movimentações] =
+        VAR _fim = MAX( 'bi_demo vw_dim_data'[data] )
+        RETURN
+            CALCULATE(
+                [Saldo Líquido Movimentado],
+                REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                'bi_demo vw_dim_data'[data] <= _fim,
+                REMOVEFILTERS( 'bi_demo vw_dim_tipo_movimentacao' )
+            )
+
+    // -------------------------------------------------------------------------
+    // Pasta: 04 - Precificação
+    // -------------------------------------------------------------------------
+
+    // Receita Realizada ÷ Quantidade Vendida: preço médio efetivamente cobrado por peça, ponderado pela quantidade. Não soma preços unitários. Unidade: R$ por peça.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Preço Médio Realizado] =
+        DIVIDE( [Receita Realizada], [Quantidade Vendida] )
+
+    // Valor Marcado Vendido ÷ Quantidade Vendida: preço médio de etiqueta por peça vendida, ponderado pela quantidade. Comparável ao Preço Médio Realizado. Unidade: R$ por peça.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Preço Médio Marcado] =
+        DIVIDE( [Valor Marcado Vendido], [Quantidade Vendida] )
+
+    // Soma de diferenca_marcado_realizado ÷ Valor Marcado Vendido (catálogo: Diferença marcado × realizado em %). Positivo = desconto; negativo = venda acima do marcado. Os descontos são padrões sintéticos inseridos intencionalmente na demo.
+    // Formato: 0.0%;-0.0%;0.0%
+    MEASURE 'Medidas'[Desconto sobre Valor Marcado (%)] =
+        DIVIDE(
+            SUM( 'bi_demo vw_fato_venda_item'[diferenca_marcado_realizado] ),
+            [Valor Marcado Vendido]
+        )
+
+    // -------------------------------------------------------------------------
+    // Pasta: 05 - Análises temporais
+    // -------------------------------------------------------------------------
+
+    // Texto com a primeira e a última data do calendário oficial (vw_dim_data) dentro dos filtros de Ano e Período, para títulos e blocos informativos. Sem filtro, mostra o período completo da demo (01/01/2024 a 31/12/2025).
+    // Formato: (texto / padrão)
+    MEASURE 'Medidas'[Período Selecionado (Exibição)] =
+        VAR _inicio = MIN( 'bi_demo vw_dim_data'[data] )
+        VAR _fim = MAX( 'bi_demo vw_dim_data'[data] )
+        RETURN
+            IF(
+                ISBLANK( _inicio ),
+                BLANK(),
+                FORMAT( _inicio, "dd/MM/yyyy", "pt-BR" ) & " a " & FORMAT( _fim, "dd/MM/yyyy", "pt-BR" )
+            )
+
+    // Dias do calendário (vw_dim_data) dentro de alguma janela comercial (janela_comercial preenchida) no filtro atual. Unidade: dias.
+    // Formato: #,0
+    MEASURE 'Medidas'[Dias em Janelas Comerciais] =
+        CALCULATE(
+            COUNTROWS( 'bi_demo vw_dim_data' ),
+            KEEPFILTERS( NOT ISBLANK( 'bi_demo vw_dim_data'[janela_comercial] ) )
+        )
+
+    // Receita Realizada somente em dias de janela comercial (Dia das Mães, Dia dos Namorados, Black Friday, Natal). As janelas e seus efeitos são simulados artificialmente na demo. Unidade: R$.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Receita em Janelas Comerciais] =
+        CALCULATE(
+            [Receita Realizada],
+            KEEPFILTERS( NOT ISBLANK( 'bi_demo vw_dim_data'[janela_comercial] ) )
+        )
+
+    // Quantidade Vendida somente em dias de janela comercial. Unidade: peças.
+    // Formato: #,0
+    MEASURE 'Medidas'[Quantidade em Janelas Comerciais] =
+        CALCULATE(
+            [Quantidade Vendida],
+            KEEPFILTERS( NOT ISBLANK( 'bi_demo vw_dim_data'[janela_comercial] ) )
+        )
+
+    // Receita em janelas comerciais ÷ dias do calendário em janelas comerciais. Normaliza pela duração para comparar com as demais datas. Inclui dias sem venda. Unidade: R$ por dia.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Receita Média Diária - Janelas Comerciais] =
+        DIVIDE( [Receita em Janelas Comerciais], [Dias em Janelas Comerciais] )
+
+    // Receita nos dias fora de qualquer janela comercial ÷ quantidade desses dias do calendário. Inclui dias sem venda. Unidade: R$ por dia.
+    // Formato: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+    MEASURE 'Medidas'[Receita Média Diária - Demais Datas] =
+        DIVIDE(
+            CALCULATE( [Receita Realizada], KEEPFILTERS( ISBLANK( 'bi_demo vw_dim_data'[janela_comercial] ) ) ),
+            CALCULATE( COUNTROWS( 'bi_demo vw_dim_data' ), KEEPFILTERS( ISBLANK( 'bi_demo vw_dim_data'[janela_comercial] ) ) )
+        )
+
+    // Variação percentual da receita média diária nas janelas comerciais em relação às demais datas, no mesmo filtro. Vazia quando um dos dois grupos não existe no contexto. Efeito sintético inserido intencionalmente; não é conclusão sobre a empresa.
+    // Formato: +0.0%;-0.0%;0.0%
+    MEASURE 'Medidas'[Diferença da Média Diária - Janelas vs Demais] =
+        VAR _janelas = [Receita Média Diária - Janelas Comerciais]
+        VAR _demais = [Receita Média Diária - Demais Datas]
+        RETURN
+            IF(
+                ISBLANK( _janelas ) || ISBLANK( _demais ),
+                BLANK(),
+                DIVIDE( _janelas, _demais ) - 1
+            )
+
+    // -------------------------------------------------------------------------
+    // Pasta: 05 - Análises temporais\Associações
+    // -------------------------------------------------------------------------
+
+    // Suporte de uma única regra A→B de vw_associacao_produtos (vendas com A e B ÷ total de vendas). Retorna vazio se houver mais de uma regra no contexto: não soma nem média entre regras. Calculado sobre o histórico completo; não responde aos filtros de data.
+    // Formato: 0.000%
+    MEASURE 'Medidas'[Suporte (Regra de Produtos)] =
+        IF(
+            COUNTROWS( 'bi_demo vw_associacao_produtos' ) = 1,
+            MAX( 'bi_demo vw_associacao_produtos'[suporte] )
+        )
+
+    // Confiança de uma única regra A→B (vendas com A e B ÷ vendas com A). Vazio para mais de uma regra no contexto. Histórico completo; padrão de afinidade inserido pelo gerador sintético.
+    // Formato: 0.0%
+    MEASURE 'Medidas'[Confiança (Regra de Produtos)] =
+        IF(
+            COUNTROWS( 'bi_demo vw_associacao_produtos' ) = 1,
+            MAX( 'bi_demo vw_associacao_produtos'[confianca] )
+        )
+
+    // Lift de uma única regra A→B (confiança ÷ suporte de B); maior que 1 indica compra conjunta acima do acaso. Vazio para mais de uma regra. Regras com poucas vendas conjuntas têm lift instável.
+    // Formato: 0.00
+    MEASURE 'Medidas'[Lift (Regra de Produtos)] =
+        IF(
+            COUNTROWS( 'bi_demo vw_associacao_produtos' ) = 1,
+            MAX( 'bi_demo vw_associacao_produtos'[lift] )
+        )
+
+    // Lift exibido somente para as 10 regras de produtos de maior lift entre as que têm pelo menos 5 vendas conjuntas (critério aprovado para evitar destacar coincidências de 1 ou 2 vendas). Cada par aparece nos dois sentidos (A→B e B→A). Histórico completo.
+    // Formato: 0.00
+    MEASURE 'Medidas'[Lift - Top 10 Regras de Produtos] =
+        VAR _ant = SELECTEDVALUE( 'bi_demo vw_associacao_produtos'[codigo_antecedente] )
+        VAR _con = SELECTEDVALUE( 'bi_demo vw_associacao_produtos'[codigo_consequente] )
+        VAR _top =
+            TOPN(
+                10,
+                FILTER(
+                    ALLSELECTED( 'bi_demo vw_associacao_produtos' ),
+                    'bi_demo vw_associacao_produtos'[vendas_com_ambos] >= 5
+                ),
+                'bi_demo vw_associacao_produtos'[lift], DESC
+            )
+        RETURN
+            IF(
+                COUNTROWS( 'bi_demo vw_associacao_produtos' ) = 1
+                    && NOT ISEMPTY(
+                        FILTER(
+                            _top,
+                            'bi_demo vw_associacao_produtos'[codigo_antecedente] = _ant
+                                && 'bi_demo vw_associacao_produtos'[codigo_consequente] = _con
+                        )
+                    ),
+                MAX( 'bi_demo vw_associacao_produtos'[lift] )
+            )
+
+    // Suporte de uma única regra entre tipos de peça (vw_associacao_tipos). Vazio para mais de uma regra no contexto. Histórico completo; não responde aos filtros de data.
+    // Formato: 0.00%
+    MEASURE 'Medidas'[Suporte (Regra de Tipos)] =
+        IF(
+            COUNTROWS( 'bi_demo vw_associacao_tipos' ) = 1,
+            MAX( 'bi_demo vw_associacao_tipos'[suporte] )
+        )
+
+    // Confiança de uma única regra entre tipos de peça. Vazio para mais de uma regra no contexto.
+    // Formato: 0.0%
+    MEASURE 'Medidas'[Confiança (Regra de Tipos)] =
+        IF(
+            COUNTROWS( 'bi_demo vw_associacao_tipos' ) = 1,
+            MAX( 'bi_demo vw_associacao_tipos'[confianca] )
+        )
+
+    // Lift de uma única regra entre tipos de peça; maior que 1 indica afinidade acima do acaso. As afinidades foram inseridas pelo gerador sintético (config_demo.afinidade_tipo).
+    // Formato: 0.00
+    MEASURE 'Medidas'[Lift (Regra de Tipos)] =
+        IF(
+            COUNTROWS( 'bi_demo vw_associacao_tipos' ) = 1,
+            MAX( 'bi_demo vw_associacao_tipos'[lift] )
+        )

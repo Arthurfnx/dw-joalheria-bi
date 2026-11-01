@@ -1,6 +1,6 @@
 # Arquitetura
 
-**Status:** aprovada para a fase 1 (demonstrativa) em 2026-10-31. Ainda não implementada.
+**Status:** aprovada para a fase 1 (demonstrativa) em 2026-10-31; **implementada e executada** em 2026-10-31 e 2026-11-01 (banco `dw_joalheria`, 21 migrations, ETL com 24/24 verificações aprovadas, relatório Power BI com 6 páginas).
 
 ## Fluxo lógico — fase 1 (dados sintéticos)
 
@@ -31,7 +31,9 @@ audit_demo    execuções, etapas, contagens, rejeições e resultados de valida
 | Consumo | `bi_demo` | Views estáveis para o Power BI, incluindo associação de pares e informação do ambiente |
 | Auditoria | `audit_demo` | Execução, etapas, contagens, rejeições, validações e correções de preço |
 | Orquestração | PowerShell + `psql` | `scripts/*.ps1`; leem `PG*` e `PG_BIN` do `.env` local |
-| Apresentação | Power BI Desktop (Import) | Modelo semântico, medidas DAX e páginas; instalado pelo usuário |
+| Segurança de leitura | Perfil `bi_leitura` (`db/seguranca/bi_leitura.sql`) | CONNECT, USAGE em `bi_demo` e SELECT nas views; nenhuma escrita |
+| Apresentação | Power BI Desktop (Import), formato PBIP | Modelo semântico (12 views, 50 medidas, 10 relacionamentos) e 6 páginas; ver `powerbi/data_model.md` |
+| Conferência | PowerShell + `psql` (`tests/reconciliacao/`) | Recalcula no SQL os indicadores do relatório, somente leitura |
 
 ## Decisões de arquitetura
 
@@ -49,9 +51,18 @@ audit_demo    execuções, etapas, contagens, rejeições e resultados de valida
 | Esquemas | `config_demo`, `staging_demo`, `dw_demo`, `bi_demo`, `audit_demo` | esquemas próprios (por exemplo, `staging`, `dw`, `bi`, `audit`), **não criados agora** |
 | Origem | gerador sintético | XLSX reais (Python → staging) e, futuramente, sistema operacional |
 | Marcação | `origem_dado = 'SINTETICO_DEMO'` | identificação da fonte real |
-| Power BI | parâmetro de esquema = `bi_demo` e aviso fixo | parâmetro = esquema real |
+| Power BI | conexão fixa em `localhost:5432`, banco `dw_joalheria`, esquema `bi_demo`; aviso fixo em todas as páginas | a definir |
 
-As views reais futuras devem manter os mesmos nomes de colunas das views demo, para que o relatório troque de ambiente apenas pelo parâmetro. Dados demo e reais nunca são unidos.
+As views reais futuras devem manter os mesmos nomes de colunas das views demo. **Implementado:** as 12 consultas M usam valores fixos (`PostgreSQL.Database("localhost:5432", "dw_joalheria")` e o esquema `bi_demo`), sem parâmetro. **Melhoria futura (não implementada):** parametrizar servidor, banco e esquema para trocar de ambiente sem editar as consultas. Dados demo e reais nunca são unidos.
+
+**Verificado em 2026-11-01:** os esquemas reais `staging`, `dw`, `bi` e `audit` não existem no banco.
+
+## Usuários do banco
+
+| Perfil | Uso | Situação |
+|---|---|---|
+| `postgres` (superusuário) | Migrations, ETL, testes e conferências; é o usuário do `.env` | Aceitável apenas no ambiente demonstrativo local; não é configuração de produção |
+| `bi_leitura` | Leitura das views `bi_demo` pelo Power BI | Criado e auditado por metadados em 2026-11-01: SELECT nas 12 views; nenhum INSERT, UPDATE, DELETE, TRUNCATE ou CREATE; não é superusuário nem membro de outro papel; sem USAGE em `dw_demo`, `staging_demo`, `config_demo` e `audit_demo`. Herda de PUBLIC o padrão do PostgreSQL: TEMPORARY no banco e EXECUTE nas funções, que ficam inacessíveis por falta de USAGE nos esquemas. Qual usuário está gravado nas credenciais do Power BI Desktop: **pendente de confirmação** |
 
 ## Fora do escopo
 

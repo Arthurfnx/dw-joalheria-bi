@@ -1,6 +1,6 @@
 # Dicionário de dados — ambiente demonstrativo (`dw_demo`)
 
-**Status:** implementado em `db/migrations/005`–`007` (2026-10-31); **ainda não aplicado** ao banco. Qualquer divergência deve ser corrigida aqui junto com o SQL.
+**Status:** implementado em `db/migrations/005`–`007` e aplicado ao banco `dw_joalheria` em 2026-10-31. Qualquer divergência deve ser corrigida aqui junto com o SQL.
 
 **Convenções:**
 - Todas as tabelas de `dw_demo` têm `origem_dado VARCHAR(20) NOT NULL CHECK (origem_dado = 'SINTETICO_DEMO')`.
