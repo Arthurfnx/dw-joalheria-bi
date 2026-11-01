@@ -4,17 +4,33 @@
 
 Implementar uma solução acadêmica de Business Intelligence para uma joalheria, com PostgreSQL, Data Warehouse relacional dimensional, ETL, testes e Power BI. O foco obrigatório é fornecer dados confiáveis para relatórios de negócio no Power BI.
 
+## Idioma
+
+Toda comunicação, documentação, comentários e instruções devem estar em português brasileiro.
+
 ## Estado conhecido (não presumir além disto)
 
-- A fonte de produtos e estoque foi informada como XLSX, mas ainda precisa ser inspecionada.
-- Foi informado que existem fontes de compras e vendas; seus arquivos, formatos, colunas e granularidades ainda precisam ser inspecionados.
-- O período e a completude do histórico são desconhecidos.
-- Foi informado que a fonte de vendas não possui identificador de transação.
-- PostgreSQL ainda não está instalado/configurado no ambiente local.
-- Power BI Desktop ainda não está instalado.
-- Docker não está instalado e não deve ser requisito da primeira versão.
+- Ambiente (informado pelo usuário em 2026-10-31 e conferido): Windows 11 Pro; Git/GitHub configurados; Python 3.14.10; **PostgreSQL 18.6 instalado**, com o serviço `postgresql-x64-18` em execução. Docker não será usado. Power BI Desktop ainda não está instalado; **a instalação será feita pelo usuário**.
+- O `psql` pode não estar no PATH da sessão; os scripts devem aceitar `PG_BIN` (por exemplo, `C:\Program Files\PostgreSQL\18\bin`). Não instalar nem reinstalar Python ou PostgreSQL.
+- As fontes reais em `data/raw/` foram inspecionadas (ver `docs/source_inventory.md`): `Tabela de preços de Folheados e prata.xlsx` (abas FOLHEADOS, RAMON - PEÇAS e CATEGORIAS) e `CLS Tabela por indice Excel (…).xlsx`. Não existe arquivo separado de compras nem de vendas: esses dados aparecem como colunas da planilha de estoque.
+- A fonte real de vendas não possui identificador de transação.
 
 Não transforme a existência declarada de uma fonte em confirmação dos seus campos. Diferencie sempre fatos observados, declarações do usuário, hipóteses e decisões pendentes.
+
+## Fase 1 — ambiente demonstrativo com dados sintéticos (decisão do usuário, 2026-10-31)
+
+A primeira entrega usa **somente dados sintéticos**, gerados de forma determinística dentro do PostgreSQL. O plano aprovado está resumido em `docs/architecture.md` e `docs/demo_data_specification.md`.
+
+- Esquemas exclusivos da demo: `config_demo`, `staging_demo`, `dw_demo`, `bi_demo`, `audit_demo`. Nenhum esquema é compartilhado com o ambiente real futuro. Os esquemas reais (`staging`, `dw`, `bi`, `audit`) **não** devem ser criados nesta fase.
+- Toda linha sintética recebe `origem_dado = 'SINTETICO_DEMO'`. Os códigos seguem o padrão `DEMO-…`.
+- **Exceção às regras 3 e 5**, válida apenas nos esquemas `*_demo`:
+  - dados sintéticos são permitidos para viabilizar a demonstração;
+  - identificadores artificiais de venda permitem ticket médio e associação **somente** sobre os dados sintéticos.
+- **Proibido nesta fase:** importar ou copiar registros, códigos, descrições, preços, quantidades ou clientes das planilhas reais; gerar dados pessoais ou dimensão de clientes.
+- Todo painel do Power BI deve exibir: "AMBIENTE DEMONSTRATIVO — DADOS SINTÉTICOS, NÃO REPRESENTAM RESULTADOS REAIS DA EMPRESA."
+- Padrões sintéticos (sazonalidade, afinidades, gatilho de reposição, descontos) devem ser documentados como inseridos intencionalmente. Não são conclusões sobre a empresa.
+- Margem bruta, estoque valorizado e giro por custo ficam fora da fase 1.
+- Operações destrutivas, inclusive `scripts/reset_demo.ps1`, exigem confirmação explícita do usuário a cada execução.
 
 ## Regras inegociáveis
 

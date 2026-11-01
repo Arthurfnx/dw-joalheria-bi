@@ -1,0 +1,32 @@
+model Model
+	culture: pt-BR
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+	sourceQueryCulture: pt-BR
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_QueryOrder = ["bi_demo vw_associacao_produtos","bi_demo vw_associacao_tipos","bi_demo vw_dim_data","bi_demo vw_dim_produto","bi_demo vw_dim_tipo_movimentacao","bi_demo vw_fato_compra_item","bi_demo vw_fato_movimentacao_estoque","bi_demo vw_fato_snapshot_estoque","bi_demo vw_fato_venda_item","bi_demo vw_info_ambiente","bi_demo vw_preco_ouro","bi_demo vw_preco_ouro_versoes"]
+
+annotation PBI_ProTooling = ["DevMode","MCP-PBIModeling"]
+
+ref table 'bi_demo vw_associacao_produtos'
+ref table 'bi_demo vw_associacao_tipos'
+ref table 'bi_demo vw_dim_data'
+ref table 'bi_demo vw_dim_produto'
+ref table 'bi_demo vw_dim_tipo_movimentacao'
+ref table 'bi_demo vw_fato_compra_item'
+ref table 'bi_demo vw_fato_movimentacao_estoque'
+ref table 'bi_demo vw_fato_snapshot_estoque'
+ref table 'bi_demo vw_fato_venda_item'
+ref table 'bi_demo vw_info_ambiente'
+ref table 'bi_demo vw_preco_ouro'
+ref table 'bi_demo vw_preco_ouro_versoes'
+ref table Medidas
+
+ref cultureInfo pt-BR
+

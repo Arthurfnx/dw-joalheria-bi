@@ -1,0 +1,108 @@
+table 'bi_demo vw_preco_ouro_versoes'
+	lineageTag: 78b7a420-b3f1-449f-9893-536543b580e2
+
+	column parametro_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: d9d61bf3-1b58-481d-9208-d2d4f6773ad3
+		summarizeBy: none
+		sourceColumn: parametro_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_referencia
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 43de1c53-16ba-4bfb-9a68-4d7230818216
+		summarizeBy: none
+		sourceColumn: data_referencia
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column versao
+		dataType: int64
+		formatString: 0
+		lineageTag: 7800fce8-0d90-4587-bd40-9925fa6dc777
+		summarizeBy: none
+		sourceColumn: versao
+
+		annotation SummarizationSetBy = Automatic
+
+	column preco_ouro_1000
+		dataType: double
+		lineageTag: acbbd728-2a1f-4154-8985-4d59b577bb50
+		summarizeBy: none
+		sourceColumn: preco_ouro_1000
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column unidade_referencia
+		dataType: string
+		lineageTag: c1fc11e5-6131-4d2f-a2aa-6216053e87fd
+		summarizeBy: none
+		sourceColumn: unidade_referencia
+
+		annotation SummarizationSetBy = Automatic
+
+	column vigente
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 988af570-06f7-4a0f-aefb-a5b5602620e0
+		summarizeBy: none
+		sourceColumn: vigente
+
+		annotation SummarizationSetBy = Automatic
+
+	column substitui_parametro_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c9425e16-d1ce-48ed-9af5-2e0ba63739c7
+		summarizeBy: none
+		sourceColumn: substitui_parametro_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column motivo_correcao
+		dataType: string
+		lineageTag: 8185c2ec-f954-445f-a41d-f4c69f3da4f5
+		summarizeBy: none
+		sourceColumn: motivo_correcao
+
+		annotation SummarizationSetBy = Automatic
+
+	column criado_em
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: 6b370a0f-53fd-4aef-8c36-3e08514fda14
+		summarizeBy: none
+		sourceColumn: criado_em
+
+		annotation SummarizationSetBy = Automatic
+
+	column origem_dado
+		dataType: string
+		isHidden
+		lineageTag: 03617fc8-93d7-47c3-978e-ad3c22515801
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'bi_demo vw_preco_ouro_versoes' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_preco_ouro_versoes = Fonte{[Schema="bi_demo",Item="vw_preco_ouro_versoes"]}[Data]
+				in
+				    bi_demo_vw_preco_ouro_versoes
+
+	annotation PBI_ResultType = Table
+

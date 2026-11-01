@@ -48,3 +48,7 @@ Thumbs.db
 # IDE / OS
 .vscode/
 .idea/
+
+# Power BI PBIP: configurações locais e cache de dados (não versionar)
+**/.pbi/localSettings.json
+**/.pbi/cache.abf

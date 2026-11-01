@@ -1,0 +1,157 @@
+table 'bi_demo vw_associacao_produtos'
+	lineageTag: 1fd3139f-75e6-4d2f-8dc3-7c1abc687036
+
+	column produto_key_antecedente
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 601ad7f4-7dd5-421f-9181-7fef603447ae
+		summarizeBy: none
+		sourceColumn: produto_key_antecedente
+
+		annotation SummarizationSetBy = Automatic
+
+	column codigo_antecedente
+		dataType: string
+		lineageTag: 91e1c3e1-5226-463f-8336-2505bc96748d
+		summarizeBy: none
+		sourceColumn: codigo_antecedente
+
+		annotation SummarizationSetBy = Automatic
+
+	column material_antecedente
+		dataType: string
+		lineageTag: fbfb0de3-c831-4af7-a6e2-26e60f0cc20c
+		summarizeBy: none
+		sourceColumn: material_antecedente
+
+		annotation SummarizationSetBy = Automatic
+
+	column tipo_peca_antecedente
+		dataType: string
+		lineageTag: 7f88f032-8e06-41a6-a2ed-decf45bd3d1e
+		summarizeBy: none
+		sourceColumn: tipo_peca_antecedente
+
+		annotation SummarizationSetBy = Automatic
+
+	column produto_key_consequente
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 1002d81a-a011-4e7f-a385-54f457a328d2
+		summarizeBy: none
+		sourceColumn: produto_key_consequente
+
+		annotation SummarizationSetBy = Automatic
+
+	column codigo_consequente
+		dataType: string
+		lineageTag: 2209159b-9416-4a4b-aa4b-93c5ddeb1e4d
+		summarizeBy: none
+		sourceColumn: codigo_consequente
+
+		annotation SummarizationSetBy = Automatic
+
+	column material_consequente
+		dataType: string
+		lineageTag: 00d3e7fe-093e-415b-95fb-78257364a082
+		summarizeBy: none
+		sourceColumn: material_consequente
+
+		annotation SummarizationSetBy = Automatic
+
+	column tipo_peca_consequente
+		dataType: string
+		lineageTag: 31c84e3c-ee05-4431-a3da-b0bf1fb8f4a3
+		summarizeBy: none
+		sourceColumn: tipo_peca_consequente
+
+		annotation SummarizationSetBy = Automatic
+
+	column vendas_com_ambos
+		dataType: int64
+		formatString: 0
+		lineageTag: 6906fdc3-ae9b-40a0-a058-51562572f778
+		summarizeBy: none
+		sourceColumn: vendas_com_ambos
+
+		annotation SummarizationSetBy = Automatic
+
+	column vendas_com_antecedente
+		dataType: int64
+		formatString: 0
+		lineageTag: 7270c203-cd16-46eb-9480-36cd88cfe0db
+		summarizeBy: none
+		sourceColumn: vendas_com_antecedente
+
+		annotation SummarizationSetBy = Automatic
+
+	column vendas_com_consequente
+		dataType: int64
+		formatString: 0
+		lineageTag: a3aaecdc-d1a8-4124-bbe9-287ab1578220
+		summarizeBy: none
+		sourceColumn: vendas_com_consequente
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_vendas
+		dataType: int64
+		formatString: 0
+		lineageTag: 4e1cdaca-f950-4569-82f1-c2a9153a8be1
+		summarizeBy: none
+		sourceColumn: total_vendas
+
+		annotation SummarizationSetBy = Automatic
+
+	column suporte
+		dataType: double
+		lineageTag: f8e7926d-798e-42fe-a675-42d124151100
+		summarizeBy: none
+		sourceColumn: suporte
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column confianca
+		dataType: double
+		lineageTag: 33bcbb62-652b-42b6-9195-9419251be847
+		summarizeBy: none
+		sourceColumn: confianca
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column lift
+		dataType: double
+		lineageTag: 58831ab7-6664-4589-bd06-3a5ec6b875da
+		summarizeBy: none
+		sourceColumn: lift
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column origem_dado
+		dataType: string
+		isHidden
+		lineageTag: 4f0e25ba-86f1-4a3b-bf3d-373b265e360d
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'bi_demo vw_associacao_produtos' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_associacao_produtos = Fonte{[Schema="bi_demo",Item="vw_associacao_produtos"]}[Data]
+				in
+				    bi_demo_vw_associacao_produtos
+
+	annotation PBI_ResultType = Table
+

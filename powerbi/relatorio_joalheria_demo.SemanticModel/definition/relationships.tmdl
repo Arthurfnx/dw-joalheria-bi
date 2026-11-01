@@ -1,0 +1,43 @@
+relationship AutoDetected_f6156bdc-c4c8-4b99-b35e-956a8b944146
+	fromColumn: 'bi_demo vw_fato_compra_item'.data_key
+	toColumn: 'bi_demo vw_dim_data'.data_key
+
+relationship AutoDetected_532f4066-fad8-4f97-8b59-c3354bdbed04
+	fromColumn: 'bi_demo vw_fato_movimentacao_estoque'.data_key
+	toColumn: 'bi_demo vw_dim_data'.data_key
+
+relationship AutoDetected_a8c2039b-3f75-47a0-aff0-ada799da60cd
+	fromColumn: 'bi_demo vw_fato_snapshot_estoque'.data_key
+	toColumn: 'bi_demo vw_dim_data'.data_key
+
+relationship AutoDetected_3c2dd4b4-6439-404e-8f78-ff1411acea86
+	fromColumn: 'bi_demo vw_fato_venda_item'.data_key
+	toColumn: 'bi_demo vw_dim_data'.data_key
+
+relationship AutoDetected_3178de2d-b592-47ce-b2b0-e8f8cdcd847b
+	isActive: false
+	crossFilteringBehavior: bothDirections
+	fromCardinality: one
+	fromColumn: 'bi_demo vw_preco_ouro'.data_key
+	toColumn: 'bi_demo vw_dim_data'.data_key
+
+relationship AutoDetected_d5009dba-4456-4367-9caa-a7272c4c1d65
+	fromColumn: 'bi_demo vw_fato_compra_item'.produto_key
+	toColumn: 'bi_demo vw_dim_produto'.produto_key
+
+relationship AutoDetected_7612da9f-1188-48f5-b707-7ab6cac32e7a
+	fromColumn: 'bi_demo vw_fato_movimentacao_estoque'.produto_key
+	toColumn: 'bi_demo vw_dim_produto'.produto_key
+
+relationship AutoDetected_02d4cfca-aa63-459f-a4ae-67b702efb70b
+	fromColumn: 'bi_demo vw_fato_snapshot_estoque'.produto_key
+	toColumn: 'bi_demo vw_dim_produto'.produto_key
+
+relationship AutoDetected_9e46ade4-cf82-4414-a71c-493ba5f6068e
+	fromColumn: 'bi_demo vw_fato_venda_item'.produto_key
+	toColumn: 'bi_demo vw_dim_produto'.produto_key
+
+relationship AutoDetected_1d5b4e2c-157d-46b1-977d-5dee3bfbebb2
+	fromColumn: 'bi_demo vw_fato_movimentacao_estoque'.tipo_mov_key
+	toColumn: 'bi_demo vw_dim_tipo_movimentacao'.tipo_mov_key
+

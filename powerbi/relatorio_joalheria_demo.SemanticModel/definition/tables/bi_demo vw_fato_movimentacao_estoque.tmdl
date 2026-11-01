@@ -1,0 +1,90 @@
+table 'bi_demo vw_fato_movimentacao_estoque'
+	lineageTag: 8de50cb8-1d23-467e-a54f-76e7576fb5ff
+
+	column movimentacao_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 246a6f1e-7410-411e-bad2-3506fb614619
+		summarizeBy: none
+		sourceColumn: movimentacao_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column id_evento_origem
+		dataType: string
+		isHidden
+		lineageTag: 68b6e792-db21-4d63-8196-9fb5e03159e8
+		summarizeBy: none
+		sourceColumn: id_evento_origem
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: bdd967d2-7ef5-4e42-9450-21eb0ae63302
+		summarizeBy: none
+		sourceColumn: data_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_hora_evento
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: e1e97cad-7227-4f30-b9dc-278210bf6d6d
+		summarizeBy: none
+		sourceColumn: data_hora_evento
+
+		annotation SummarizationSetBy = Automatic
+
+	column produto_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: db9b50d4-7b2c-4090-a43e-8fb23fe73fa2
+		summarizeBy: none
+		sourceColumn: produto_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column tipo_mov_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 0f43fc5d-0383-4e61-a3b3-65107540dc30
+		summarizeBy: none
+		sourceColumn: tipo_mov_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column quantidade
+		dataType: int64
+		formatString: 0
+		lineageTag: a1af40cc-6e6f-4c4f-9f13-7adf101cabf4
+		summarizeBy: sum
+		sourceColumn: quantidade
+
+		annotation SummarizationSetBy = Automatic
+
+	column origem_dado
+		dataType: string
+		isHidden
+		lineageTag: 7b7c2aba-04c6-4d00-a286-0feaee8ef55e
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'bi_demo vw_fato_movimentacao_estoque' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_fato_movimentacao_estoque = Fonte{[Schema="bi_demo",Item="vw_fato_movimentacao_estoque"]}[Data]
+				in
+				    bi_demo_vw_fato_movimentacao_estoque
+
+	annotation PBI_ResultType = Table
+

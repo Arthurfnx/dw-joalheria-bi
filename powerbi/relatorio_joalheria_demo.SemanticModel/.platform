@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "relatorio_joalheria_demo"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "6f474bba-3044-40a4-a893-ec816206a317"
+  }
+}

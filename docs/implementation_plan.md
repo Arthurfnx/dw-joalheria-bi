@@ -1,51 +1,23 @@
 # Plano de implementação
 
-## Fase 1 — Diagnóstico
+Plano aprovado (v3.1) em 2026-10-31. Detalhes em `docs/architecture.md`, `docs/demo_data_specification.md`, `docs/data_dictionary.md` e `docs/data_quality.md`.
 
-- Inspecionar repositório e ambiente.
-- Localizar e inventariar fontes reais.
-- Documentar campos, datas, volume, granularidade e problemas de qualidade.
-- Registrar perguntas que exigem validação do parceiro.
+## Fase 1 — Ambiente demonstrativo (dados sintéticos)
 
-**Saída:** inventário e lista de decisões pendentes.
+| Etapa | Conteúdo | Situação |
+|---|---|---|
+| 1.0 | Diagnóstico do repositório, do ambiente e das fontes reais | Concluída (somente leitura) |
+| 1.1 | Copiar os documentos de referência para `docs/referencia/`; atualizar a documentação | Concluída |
+| 1.2 | Migrations: esquemas `*_demo`, auditoria, configuração, staging, dimensões, fatos e parâmetro do ouro | **Aplicadas em `dw_joalheria` (PostgreSQL 18.6) em 2026-10-31**; 21 arquivos registrados |
+| 1.3 | Gerador determinístico PL/pgSQL e configuração padrão | Código pronto (`etl/sql/demo/00`–`14`) |
+| 1.4 | Validação, cargas, snapshots e qualidade (`etl/sql/demo/`) | Código pronto (`20`–`40`) |
+| 1.5 | Views `bi_demo` (incluindo associação e informação do ambiente) | Código pronto (`db/views/bi_demo_views.sql`) |
+| 1.6 | Scripts PowerShell (`PG_BIN`) e testes SQL; execução no PostgreSQL 18.6 local | Scripts e testes prontos e validados estaticamente; **execução aguardando autorização para criar o banco** |
+| 1.7 | Power BI: `measures.dax`, modelo, páginas, guia de conexão e checklist | Documentos prontos; DAX não validado |
+| 1.8 | Montagem e validação do relatório no Power BI Desktop | Depende da instalação pelo usuário |
 
-## Fase 2 — Preparação do ambiente
+## Fase 2 — Integração das fontes reais (futura)
 
-- Preparar ambiente Python virtual.
-- Instalar/configurar PostgreSQL localmente após autorização do usuário.
-- Testar conexão e documentar comandos.
-
-**Saída:** ambiente reproduzível.
-
-## Fase 3 — Staging e ingestão
-
-- Implementar extração conforme formato real das fontes.
-- Criar staging e auditoria.
-- Implementar validações e relatório de rejeições.
-
-**Saída:** fontes reais carregadas em staging.
-
-## Fase 4 — Modelagem dimensional
-
-- Definir granularidade e dimensões conformadas.
-- Implementar apenas fatos sustentadas pelas fontes.
-- Criar migrations e testes de integridade.
-
-**Saída:** Data Warehouse implementado e documentado.
-
-## Fase 5 — ETL e indicadores
-
-- Implementar transformações SQL e cargas reproduzíveis.
-- Validar reconciliação e idempotência.
-- Documentar fórmulas, unidades, períodos e limitações.
-
-**Saída:** ETL auditável e catálogo de indicadores.
-
-## Fase 6 — Power BI
-
-- Instalar Power BI Desktop.
-- Conectar ao PostgreSQL.
-- Criar modelo semântico, medidas e páginas de relatório que os dados suportarem.
-- Validar resultados contra o banco.
-
-**Saída:** relatórios validados ou documentação precisa do que ainda impede sua finalização.
+- Python (`etl/python/`) para ler CLS, RAMON e FOLHEADOS em esquemas reais próprios de staging.
+- Tratamentos documentados em `docs/source_inventory.md`, depois de respondidas as perguntas de `docs/pending_questions.md`.
+- DW real separado da demo. O Power BI troca de ambiente por parâmetro de esquema.

@@ -1,0 +1,142 @@
+table 'bi_demo vw_dim_data'
+	lineageTag: 8f37d799-836b-4f09-9d91-02c2ddb160ec
+	dataCategory: Time
+
+	column data_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: f80618cb-90e0-479a-8b6d-2f853beb5ab2
+		summarizeBy: none
+		sourceColumn: data_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column data
+		dataType: dateTime
+		isKey
+		formatString: Long Date
+		lineageTag: 2ba4412e-bd46-4a2f-8e7b-a3c2ed35f3b3
+		summarizeBy: none
+		sourceColumn: data
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column dia
+		dataType: int64
+		formatString: 0
+		lineageTag: 2de4ac42-c38a-4b5d-9555-bfc1e69af894
+		summarizeBy: none
+		sourceColumn: dia
+
+		annotation SummarizationSetBy = Automatic
+
+	column mes
+		dataType: int64
+		formatString: 0
+		lineageTag: 788fdf24-7cee-4b23-80d0-0f156007caae
+		summarizeBy: none
+		sourceColumn: mes
+
+		annotation SummarizationSetBy = Automatic
+
+	column nome_mes
+		dataType: string
+		lineageTag: 8a6c6d29-569e-4bbf-bc88-482ab20cd7de
+		summarizeBy: none
+		sourceColumn: nome_mes
+		sortByColumn: mes
+
+		annotation SummarizationSetBy = Automatic
+
+	column trimestre
+		dataType: int64
+		formatString: 0
+		lineageTag: 0f993874-7f4c-41b0-8d73-d3d47318ba2a
+		summarizeBy: none
+		sourceColumn: trimestre
+
+		annotation SummarizationSetBy = Automatic
+
+	column ano
+		dataType: int64
+		formatString: 0
+		lineageTag: d10407ff-f018-4059-bb47-6e9821346a97
+		summarizeBy: none
+		sourceColumn: ano
+
+		annotation SummarizationSetBy = Automatic
+
+	column ano_mes
+		dataType: string
+		lineageTag: 364ac5f5-eb0f-49ae-9990-1ed6da3d3bf2
+		summarizeBy: none
+		sourceColumn: ano_mes
+
+		annotation SummarizationSetBy = Automatic
+
+	column dia_semana
+		dataType: int64
+		formatString: 0
+		lineageTag: 6601a73b-e3b0-45b4-a244-2a0b5bbdfd5b
+		summarizeBy: none
+		sourceColumn: dia_semana
+
+		annotation SummarizationSetBy = Automatic
+
+	column nome_dia_semana
+		dataType: string
+		lineageTag: ce516b0a-babd-401c-beaa-77a7baa4cf45
+		summarizeBy: none
+		sourceColumn: nome_dia_semana
+		sortByColumn: dia_semana
+
+		annotation SummarizationSetBy = Automatic
+
+	column fim_de_semana
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 51f66317-dfdd-4c0f-b10d-ca1beb5fa5fb
+		summarizeBy: none
+		sourceColumn: fim_de_semana
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_comercial
+		dataType: string
+		lineageTag: ccf82d71-17c9-474a-8f39-b7959bba4403
+		summarizeBy: none
+		sourceColumn: data_comercial
+
+		annotation SummarizationSetBy = Automatic
+
+	column janela_comercial
+		dataType: string
+		lineageTag: a4f1b644-5312-4f2f-bf3f-1f8783adebfb
+		summarizeBy: none
+		sourceColumn: janela_comercial
+
+		annotation SummarizationSetBy = Automatic
+
+	column origem_dado
+		dataType: string
+		isHidden
+		lineageTag: ec8911cb-17be-4fe8-9e21-f9d9aa36a5c1
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'bi_demo vw_dim_data' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_dim_data = Fonte{[Schema="bi_demo",Item="vw_dim_data"]}[Data]
+				in
+				    bi_demo_vw_dim_data
+
+	annotation PBI_ResultType = Table
+

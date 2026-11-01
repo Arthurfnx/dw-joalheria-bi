@@ -1,0 +1,149 @@
+table 'bi_demo vw_fato_venda_item'
+	lineageTag: 7a390ecb-1597-40e3-8a65-5da53d83aa7a
+
+	column venda_item_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 9477e782-9e6f-4797-b94c-b40e4216eba3
+		summarizeBy: none
+		sourceColumn: venda_item_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column id_venda_sintetica
+		dataType: string
+		isHidden
+		lineageTag: 808ea976-0fa1-40c7-a919-e0f4651e2b5b
+		summarizeBy: none
+		sourceColumn: id_venda_sintetica
+
+		annotation SummarizationSetBy = Automatic
+
+	column numero_item
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: b3e8982e-be82-46d2-ab37-c3be089b98c2
+		summarizeBy: none
+		sourceColumn: numero_item
+
+		annotation SummarizationSetBy = Automatic
+
+	column id_evento_origem
+		dataType: string
+		isHidden
+		lineageTag: 2ed654f9-93d8-4230-aa27-306d490abc17
+		summarizeBy: none
+		sourceColumn: id_evento_origem
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 32cb4c99-1bc3-4b37-9b33-5cd49bd2e9e2
+		summarizeBy: none
+		sourceColumn: data_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_hora_venda
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 3687429d-22ca-418f-82b8-cb60ebaeba9b
+		summarizeBy: none
+		sourceColumn: data_hora_venda
+
+		annotation SummarizationSetBy = Automatic
+
+	column produto_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: be0374aa-cb8b-4b49-983c-778cd8106be7
+		summarizeBy: none
+		sourceColumn: produto_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column quantidade_vendida
+		dataType: int64
+		formatString: 0
+		lineageTag: d9fa454a-0a5d-4581-aa1d-1597240744c7
+		summarizeBy: sum
+		sourceColumn: quantidade_vendida
+
+		annotation SummarizationSetBy = Automatic
+
+	column preco_venda_marcado_unitario
+		dataType: double
+		lineageTag: 2109ffcc-4119-4076-a408-333627a2cb88
+		summarizeBy: none
+		sourceColumn: preco_venda_marcado_unitario
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column preco_vendido_realizado_unitario
+		dataType: double
+		lineageTag: c934fd23-d264-49f5-98ce-88b3081f4970
+		summarizeBy: none
+		sourceColumn: preco_vendido_realizado_unitario
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column valor_marcado_total
+		dataType: double
+		lineageTag: 3d721542-f9b9-4624-b0f7-bb427df5d23b
+		summarizeBy: sum
+		sourceColumn: valor_marcado_total
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column valor_realizado_total
+		dataType: double
+		lineageTag: f3ad3018-aeb8-431a-bca1-5f93b08f50ee
+		summarizeBy: sum
+		sourceColumn: valor_realizado_total
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column diferenca_marcado_realizado
+		dataType: double
+		lineageTag: cc77fe9d-89d6-4eb5-9a28-c9897aa5c956
+		summarizeBy: sum
+		sourceColumn: diferenca_marcado_realizado
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column origem_dado
+		dataType: string
+		isHidden
+		lineageTag: 212bf81c-77b9-454b-86b3-0bc63b627de0
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'bi_demo vw_fato_venda_item' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_fato_venda_item = Fonte{[Schema="bi_demo",Item="vw_fato_venda_item"]}[Data]
+				in
+				    bi_demo_vw_fato_venda_item
+
+	annotation PBI_ResultType = Table
+

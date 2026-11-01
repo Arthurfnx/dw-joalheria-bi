@@ -1,0 +1,71 @@
+table 'bi_demo vw_preco_ouro'
+	lineageTag: 353f876a-83ae-4335-88c3-496d238f08ae
+
+	column data_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: fa8bda39-609f-4ad7-80e7-f18defc89198
+		summarizeBy: none
+		sourceColumn: data_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_referencia
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 76d4d192-4520-4e65-9ecc-7bae4b00f860
+		summarizeBy: none
+		sourceColumn: data_referencia
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column preco_ouro_1000
+		dataType: double
+		lineageTag: 05ddaf13-9fa1-41c0-86a7-40f1aadde11d
+		summarizeBy: none
+		sourceColumn: preco_ouro_1000
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column unidade_referencia
+		dataType: string
+		lineageTag: 9938b24d-afc0-4aa4-a7f1-d49e236971d6
+		summarizeBy: none
+		sourceColumn: unidade_referencia
+
+		annotation SummarizationSetBy = Automatic
+
+	column versao
+		dataType: int64
+		formatString: 0
+		lineageTag: 76b02b6b-dd93-4619-904f-aa4ec655d6ad
+		summarizeBy: none
+		sourceColumn: versao
+
+		annotation SummarizationSetBy = Automatic
+
+	column origem_dado
+		dataType: string
+		isHidden
+		lineageTag: 3d28f77a-e40c-4c74-9b51-4c0defbc453b
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'bi_demo vw_preco_ouro' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_preco_ouro = Fonte{[Schema="bi_demo",Item="vw_preco_ouro"]}[Data]
+				in
+				    bi_demo_vw_preco_ouro
+
+	annotation PBI_ResultType = Table
+

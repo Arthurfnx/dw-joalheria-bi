@@ -1,0 +1,84 @@
+table 'bi_demo vw_dim_tipo_movimentacao'
+	lineageTag: 2f7aeb19-b1cc-46ea-b9d3-2a671244a93f
+
+	column tipo_mov_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 54436ad9-97a4-4cad-8520-3964b37e481c
+		summarizeBy: none
+		sourceColumn: tipo_mov_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column codigo_tipo
+		dataType: string
+		lineageTag: cd64db7c-0062-4dad-be42-be56c8a56787
+		summarizeBy: none
+		sourceColumn: codigo_tipo
+
+		annotation SummarizationSetBy = Automatic
+
+	column descricao_tipo
+		dataType: string
+		lineageTag: 9e3bd420-f3b1-49b6-8215-12f714364cc1
+		summarizeBy: none
+		sourceColumn: descricao_tipo
+
+		annotation SummarizationSetBy = Automatic
+
+	column natureza
+		dataType: string
+		lineageTag: 1d683ebe-04c1-4340-90f3-c9cec7ecaf20
+		summarizeBy: none
+		sourceColumn: natureza
+
+		annotation SummarizationSetBy = Automatic
+
+	column sinal
+		dataType: int64
+		formatString: 0
+		lineageTag: e005b2fe-7f6b-46b3-aa07-05233d3e7638
+		summarizeBy: none
+		sourceColumn: sinal
+
+		annotation SummarizationSetBy = Automatic
+
+	column eh_venda
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 499cd468-3cdc-418e-b2ac-3011a3c67780
+		summarizeBy: none
+		sourceColumn: eh_venda
+
+		annotation SummarizationSetBy = Automatic
+
+	column gera_faturamento
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 43c5fe94-8749-48bc-9503-9eda8b4f541c
+		summarizeBy: none
+		sourceColumn: gera_faturamento
+
+		annotation SummarizationSetBy = Automatic
+
+	column origem_dado
+		dataType: string
+		isHidden
+		lineageTag: f347e911-44f9-4962-a5e6-c653bb048fc1
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'bi_demo vw_dim_tipo_movimentacao' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_dim_tipo_movimentacao = Fonte{[Schema="bi_demo",Item="vw_dim_tipo_movimentacao"]}[Data]
+				in
+				    bi_demo_vw_dim_tipo_movimentacao
+
+	annotation PBI_ResultType = Table
+

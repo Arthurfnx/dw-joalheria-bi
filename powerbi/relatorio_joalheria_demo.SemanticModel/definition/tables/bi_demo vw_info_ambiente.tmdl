@@ -1,0 +1,108 @@
+table 'bi_demo vw_info_ambiente'
+	lineageTag: 8c0e5545-5133-4b9e-9749-32dee4da1e5e
+
+	column ambiente
+		dataType: string
+		lineageTag: 748a0479-5a39-4ebc-a444-1e024cdf0397
+		summarizeBy: none
+		sourceColumn: ambiente
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column aviso
+		dataType: string
+		lineageTag: a77294ec-a970-48e5-aed6-8af50b407a68
+		summarizeBy: none
+		sourceColumn: aviso
+
+		annotation SummarizationSetBy = Automatic
+
+	column origem_dado
+		dataType: string
+		lineageTag: 728608a9-7ab1-4d8c-bb3c-7d8085e192fe
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	column semente
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: e537a211-86dd-4f00-a315-792c2465fc62
+		summarizeBy: none
+		sourceColumn: semente
+
+		annotation SummarizationSetBy = Automatic
+
+	column hash_configuracao
+		dataType: string
+		isHidden
+		lineageTag: 83e429de-4d07-4655-9971-f8e68a6c7793
+		summarizeBy: none
+		sourceColumn: hash_configuracao
+
+		annotation SummarizationSetBy = Automatic
+
+	column id_ultima_execucao
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 837d28bb-dec5-4f1f-9256-624e16ca1a3d
+		summarizeBy: none
+		sourceColumn: id_ultima_execucao
+
+		annotation SummarizationSetBy = Automatic
+
+	column status_ultima_execucao
+		dataType: string
+		lineageTag: ad3aa85c-cf02-4adc-b1b3-adf9565b2b2a
+		summarizeBy: none
+		sourceColumn: status_ultima_execucao
+
+		annotation SummarizationSetBy = Automatic
+
+	column ultima_carga_em
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 2ee2f989-fc0b-45cd-b0ad-7ed40012b6c8
+		summarizeBy: none
+		sourceColumn: ultima_carga_em
+
+		annotation SummarizationSetBy = Automatic
+
+	column periodo_inicio
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 7300cfcd-77f4-424d-9904-b10a08b12ad5
+		summarizeBy: none
+		sourceColumn: periodo_inicio
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column periodo_fim
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 85121266-de82-45c0-9602-d44a82f668fd
+		summarizeBy: none
+		sourceColumn: periodo_fim
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition 'bi_demo vw_info_ambiente' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_info_ambiente = Fonte{[Schema="bi_demo",Item="vw_info_ambiente"]}[Data]
+				in
+				    bi_demo_vw_info_ambiente
+
+	annotation PBI_ResultType = Table
+

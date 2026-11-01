@@ -1,0 +1,169 @@
+table 'bi_demo vw_fato_compra_item'
+	lineageTag: 353a21ef-9c45-4e2a-b7fa-9e66cee8087f
+
+	column compra_item_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4fe4afd6-1dea-4e97-be66-435090087c86
+		summarizeBy: none
+		sourceColumn: compra_item_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column id_entrada_sintetica
+		dataType: string
+		isHidden
+		lineageTag: dda325a1-d347-4697-98a7-0ca78a2ae848
+		summarizeBy: none
+		sourceColumn: id_entrada_sintetica
+
+		annotation SummarizationSetBy = Automatic
+
+	column numero_item
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 9f5f1609-d23e-4889-824b-fc650e0375a4
+		summarizeBy: none
+		sourceColumn: numero_item
+
+		annotation SummarizationSetBy = Automatic
+
+	column id_evento_origem
+		dataType: string
+		isHidden
+		lineageTag: 7e51c057-c072-45cf-8dd1-f1cf35c0a4fa
+		summarizeBy: none
+		sourceColumn: id_evento_origem
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c7814ca5-022f-44aa-90c9-2c6a259f3ef4
+		summarizeBy: none
+		sourceColumn: data_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_hora_entrada
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 080ad772-d408-4771-9f5f-e2fd5d9d50df
+		summarizeBy: none
+		sourceColumn: data_hora_entrada
+
+		annotation SummarizationSetBy = Automatic
+
+	column produto_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 2f57a8bf-4a3e-402b-a404-a152f4688364
+		summarizeBy: none
+		sourceColumn: produto_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column parametro_preco_ouro_id
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: cd2eb5a8-fd46-4277-9d0f-d762e15af857
+		summarizeBy: none
+		sourceColumn: parametro_preco_ouro_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column quantidade_recebida
+		dataType: int64
+		formatString: 0
+		lineageTag: 90c07a35-ca19-4202-a919-5ed9488fc3a6
+		summarizeBy: sum
+		sourceColumn: quantidade_recebida
+
+		annotation SummarizationSetBy = Automatic
+
+	column custo_total_pago
+		dataType: double
+		lineageTag: ef874bc6-fa8d-4829-98e7-3d0dd6b30b53
+		summarizeBy: sum
+		sourceColumn: custo_total_pago
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column custo_unitario
+		dataType: double
+		lineageTag: 3859d6cd-802f-4861-9b4e-5ef62f0fb77b
+		summarizeBy: none
+		sourceColumn: custo_unitario
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column indice_aplicado
+		dataType: double
+		lineageTag: 2ac0669d-d354-4056-92ed-845134f47706
+		summarizeBy: none
+		sourceColumn: indice_aplicado
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column preco_ouro_1000_aplicado
+		dataType: double
+		lineageTag: 65656994-e41c-41fe-8420-7b02da40f25a
+		summarizeBy: none
+		sourceColumn: preco_ouro_1000_aplicado
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column preco_sugerido_unitario
+		dataType: double
+		lineageTag: 51bb5846-afe8-4019-9b87-630af9a04b80
+		summarizeBy: none
+		sourceColumn: preco_sugerido_unitario
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column preco_venda_marcado_unitario
+		dataType: double
+		lineageTag: d1b298a3-b7d8-4228-b9c3-c10f8935bf8f
+		summarizeBy: none
+		sourceColumn: preco_venda_marcado_unitario
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column origem_dado
+		dataType: string
+		isHidden
+		lineageTag: 57805b76-fd7f-4cc2-b654-eed064484a7a
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'bi_demo vw_fato_compra_item' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_fato_compra_item = Fonte{[Schema="bi_demo",Item="vw_fato_compra_item"]}[Data]
+				in
+				    bi_demo_vw_fato_compra_item
+
+	annotation PBI_ResultType = Table
+

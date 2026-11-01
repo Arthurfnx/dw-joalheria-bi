@@ -1,0 +1,172 @@
+// =============================================================================
+// measures.dax — medidas do modelo semântico DEMONSTRATIVO (dados SINTÉTICOS).
+// Tabelas do modelo (importadas das views bi_demo, renomeadas sem o prefixo vw_):
+//   dim_produto, dim_data (marcada como tabela de datas em dim_data[data]),
+//   dim_tipo_movimentacao, fato_compra_item, fato_venda_item,
+//   fato_movimentacao_estoque, fato_snapshot_estoque, preco_ouro,
+//   associacao_tipos, associacao_produtos, info_ambiente.
+// Convenções: quantidades em PEÇAS; valores em R$; peso (g) nunca somado a peças.
+// Medidas comerciais -> fato_venda_item. Medidas físicas -> movimentação/snapshot.
+// Status: Power BI Desktop já instalado; conexão e medidas AINDA NÃO validadas (o DW ainda não foi carregado).
+// =============================================================================
+
+// ---------------------------------------------------------------- Ambiente
+Aviso Ambiente =
+SELECTEDVALUE ( info_ambiente[aviso], "AMBIENTE DEMONSTRATIVO — DADOS SINTÉTICOS, NÃO REPRESENTAM RESULTADOS REAIS DA EMPRESA." )
+
+// ---------------------------------------------------------------- Estoque (snapshot — semiaditivo)
+// Saldo no último snapshot existente dentro do período filtrado. Não soma no tempo.
+Saldo Atual (peças) =
+CALCULATE (
+    SUM ( fato_snapshot_estoque[quantidade_em_estoque] ),
+    LASTNONBLANK ( dim_data[data], CALCULATE ( COUNTROWS ( fato_snapshot_estoque ) ) )
+)
+
+// Somente Ouro; resultado em gramas (não misturar com peças).
+Peso em Estoque Ouro (g) =
+CALCULATE (
+    SUMX ( fato_snapshot_estoque, fato_snapshot_estoque[quantidade_em_estoque] * RELATED ( dim_produto[peso_g] ) ),
+    dim_produto[material] = "Ouro",
+    LASTNONBLANK ( dim_data[data], CALCULATE ( COUNTROWS ( fato_snapshot_estoque ) ) )
+)
+
+Produtos com Estoque =
+CALCULATE (
+    COUNTROWS ( FILTER ( VALUES ( dim_produto[produto_key] ), [Saldo Atual (peças)] > 0 ) )
+)
+
+// ---------------------------------------------------------------- Movimentações (sinal pela dimensão)
+Entradas (peças) =
+CALCULATE ( SUM ( fato_movimentacao_estoque[quantidade] ), dim_tipo_movimentacao[sinal] = 1 )
+
+Saídas (peças) =
+CALCULATE ( SUM ( fato_movimentacao_estoque[quantidade] ), dim_tipo_movimentacao[sinal] = -1 )
+
+Saldo Líquido Movimentado (peças) =
+SUMX ( fato_movimentacao_estoque, fato_movimentacao_estoque[quantidade] * RELATED ( dim_tipo_movimentacao[sinal] ) )
+
+Entradas por Compra (peças) =
+CALCULATE ( SUM ( fato_movimentacao_estoque[quantidade] ), dim_tipo_movimentacao[codigo_tipo] = "ENTRADA_COMPRA" )
+
+Saídas por Venda (peças) =
+CALCULATE ( SUM ( fato_movimentacao_estoque[quantidade] ), dim_tipo_movimentacao[codigo_tipo] = "SAIDA_VENDA" )
+
+// Presentes e roubos: reduzem estoque, NÃO geram faturamento.
+Saídas Não Comerciais (peças) =
+CALCULATE (
+    SUM ( fato_movimentacao_estoque[quantidade] ),
+    dim_tipo_movimentacao[codigo_tipo] IN { "SAIDA_PRESENTE", "SAIDA_ROUBO" }
+)
+
+Ajustes Líquidos (peças) =
+CALCULATE (
+    [Saldo Líquido Movimentado (peças)],
+    dim_tipo_movimentacao[natureza] = "ajuste"
+)
+
+// ---------------------------------------------------------------- Compras e custos
+Quantidade Comprada (peças) =
+SUM ( fato_compra_item[quantidade_recebida] )
+
+Custo Total de Aquisição (R$) =
+SUM ( fato_compra_item[custo_total_pago] )
+
+// Média dos custos de COMPRA ponderada pelas quantidades adquiridas.
+// NÃO é custo das mercadorias vendidas (CMV) nem valorização contábil do estoque.
+Custo Médio Ponderado de Aquisição (R$/peça) =
+DIVIDE ( [Custo Total de Aquisição (R$)], [Quantidade Comprada (peças)] )
+
+// Somente Ouro/Prata (Folheado não tem preço sugerido pela fórmula do ouro).
+Preço Sugerido Médio (R$/peça) =
+VAR _base = FILTER ( fato_compra_item, NOT ISBLANK ( fato_compra_item[preco_sugerido_unitario] ) )
+RETURN
+    DIVIDE (
+        SUMX ( _base, fato_compra_item[preco_sugerido_unitario] * fato_compra_item[quantidade_recebida] ),
+        SUMX ( _base, fato_compra_item[quantidade_recebida] )
+    )
+
+Preço Marcado Médio na Entrada (R$/peça) =
+DIVIDE (
+    SUMX ( fato_compra_item, fato_compra_item[preco_venda_marcado_unitario] * fato_compra_item[quantidade_recebida] ),
+    [Quantidade Comprada (peças)]
+)
+
+Número de Entradas (sim.) =
+DISTINCTCOUNT ( fato_compra_item[id_entrada_sintetica] )
+
+// ---------------------------------------------------------------- Vendas e faturamento
+Unidades Vendidas (peças) =
+SUM ( fato_venda_item[quantidade_vendida] )
+
+// Faturamento = valor EFETIVAMENTE REALIZADO das vendas válidas.
+Faturamento Realizado (R$) =
+SUM ( fato_venda_item[valor_realizado_total] )
+
+// Valor pelo preço marcado — NÃO é faturamento.
+Valor Marcado Vendido (R$) =
+SUM ( fato_venda_item[valor_marcado_total] )
+
+// Positiva = desconto; negativa = venda acima do marcado.
+Diferença Marcado x Realizado (R$) =
+SUM ( fato_venda_item[diferenca_marcado_realizado] )
+
+Diferença Marcado x Realizado (%) =
+DIVIDE ( [Diferença Marcado x Realizado (R$)], [Valor Marcado Vendido (R$)] )
+
+Itens Vendidos Abaixo do Marcado =
+CALCULATE ( COUNTROWS ( fato_venda_item ), FILTER ( fato_venda_item, fato_venda_item[diferenca_marcado_realizado] > 0 ) )
+
+Itens Vendidos Acima do Marcado =
+CALCULATE ( COUNTROWS ( fato_venda_item ), FILTER ( fato_venda_item, fato_venda_item[diferenca_marcado_realizado] < 0 ) )
+
+// IDs de venda ARTIFICIAIS: válidos somente na simulação.
+Número de Vendas (sim.) =
+DISTINCTCOUNT ( fato_venda_item[id_venda_sintetica] )
+
+Ticket Médio por Venda (sim.) =
+DIVIDE ( [Faturamento Realizado (R$)], [Número de Vendas (sim.)] )
+
+Itens por Venda (sim.) =
+DIVIDE ( [Unidades Vendidas (peças)], [Número de Vendas (sim.)] )
+
+// ---------------------------------------------------------------- Comparação entre períodos
+Faturamento Ano Anterior (R$) =
+CALCULATE ( [Faturamento Realizado (R$)], SAMEPERIODLASTYEAR ( dim_data[data] ) )
+
+Variação Faturamento a/a (%) =
+VAR _atual = [Faturamento Realizado (R$)]
+VAR _anterior = [Faturamento Ano Anterior (R$)]
+RETURN IF ( NOT ISBLANK ( _anterior ) && _anterior <> 0, DIVIDE ( _atual - _anterior, _anterior ) )
+
+Unidades Vendidas Ano Anterior (peças) =
+CALCULATE ( [Unidades Vendidas (peças)], SAMEPERIODLASTYEAR ( dim_data[data] ) )
+
+Variação Unidades a/a (%) =
+VAR _atual = [Unidades Vendidas (peças)]
+VAR _anterior = [Unidades Vendidas Ano Anterior (peças)]
+RETURN IF ( NOT ISBLANK ( _anterior ) && _anterior <> 0, DIVIDE ( _atual - _anterior, _anterior ) )
+
+Quantidade Comprada Ano Anterior (peças) =
+CALCULATE ( [Quantidade Comprada (peças)], SAMEPERIODLASTYEAR ( dim_data[data] ) )
+
+// ---------------------------------------------------------------- Produtos sem movimentação
+// Produtos com estoque no fim do período e sem nenhuma venda no período filtrado.
+Produtos sem Venda no Período =
+COUNTROWS (
+    FILTER (
+        VALUES ( dim_produto[produto_key] ),
+        [Saldo Atual (peças)] > 0 && ISBLANK ( [Unidades Vendidas (peças)] )
+    )
+)
+
+// Dias entre a última venda (até o fim do período filtrado) e o fim do período.
+Dias desde a Última Venda =
+VAR _fim = MAX ( dim_data[data] )
+VAR _ultima =
+    CALCULATE ( MAX ( fato_venda_item[data_hora_venda] ), FILTER ( ALL ( dim_data ), dim_data[data] <= _fim ) )
+RETURN IF ( NOT ISBLANK ( _ultima ), DATEDIFF ( _ultima, _fim, DAY ) )
+
+// ---------------------------------------------------------------- Preço do ouro (SINTÉTICO)
+// Unidade NAO_CONFIRMADA_DEMO: não é cotação oficial.
+Preço do Ouro 1000 Médio (sim.) =
+AVERAGE ( preco_ouro[preco_ouro_1000] )

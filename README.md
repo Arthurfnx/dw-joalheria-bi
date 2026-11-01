@@ -1,83 +1,87 @@
 # Data Warehouse e Business Intelligence — Joalheria
 
-Projeto acadêmico de Sistemas de Informação para implementar uma solução de Business Intelligence com **PostgreSQL**, **Data Warehouse dimensional**, processos de **ETL** e **Power BI**.
+Projeto acadêmico de Sistemas de Informação (extensão, Eixo 4): solução de Business Intelligence com **PostgreSQL**, **Data Warehouse dimensional**, **ETL** e **Power BI** para apoiar a gestão de estoque e vendas de uma joalheria.
+
+> **Fase atual: ambiente demonstrativo com DADOS SINTÉTICOS.**
+> Nenhum número produzido nesta fase representa resultados reais da empresa.
 
 ## Objetivo
 
-Consolidar dados disponíveis sobre produtos, estoque, compras e vendas para apoiar análises gerenciais. O foco é a camada analítica; não faz parte do escopo inicial construir um sistema web transacional, módulos financeiros, pagamentos, fornecedores, logística ou e-commerce.
+Demonstrar a viabilidade técnica e acadêmica de um DW integrado (compras, vendas, movimentações e saldos de estoque) consumido pelo Power BI. A demonstração cobre:
 
-## Situação conhecida do projeto
+- saldo atual;
+- estoque por material e tipo de peça;
+- entradas e saídas;
+- produtos mais e menos vendidos;
+- comparação entre períodos;
+- produtos sem movimentação;
+- evolução do estoque;
+- preço sugerido × marcado × realizado;
+- datas comerciais;
+- associação entre produtos de uma mesma venda (somente com identificadores sintéticos).
 
-As informações abaixo foram declaradas pelo usuário, mas as fontes ainda precisam ser inspecionadas:
+**Fora do escopo:** sistema web transacional, pagamentos, financeiro, fornecedores, logística, frete, e-commerce, clientes, previsão de demanda, margem bruta, estoque valorizado e giro por custo.
 
-- Produtos e estoque: fonte em formato XLSX.
-- Compras: existe uma fonte; formato, estrutura e campos ainda não inspecionados.
-- Vendas: existe uma fonte; formato, estrutura e campos ainda não inspecionados.
-- Histórico disponível: período e completude desconhecidos.
-- Identificador de transação de venda: informado como inexistente.
-- PostgreSQL: ainda não instalado/configurado no computador de desenvolvimento.
-- Power BI Desktop: ainda não instalado.
-- Docker: não instalado e não previsto para a primeira versão.
+## Fases
 
-Essas informações não autorizam presumir campos, volumes, datas, regras comerciais ou granularidades que não tenham sido observados nas fontes.
+| Fase | Dados | Esquemas | Situação |
+|---|---|---|---|
+| 1 — Demonstrativa | Sintéticos, determinísticos, `SINTETICO_DEMO` | `config_demo`, `staging_demo`, `dw_demo`, `bi_demo`, `audit_demo` | Implementação concluída e validada **estaticamente**; aguarda execução e validação no PostgreSQL |
+| 2 — Integração real | Planilhas CLS (ouro), RAMON (prata), FOLHEADOS | esquemas reais próprios (a criar) | Futura; regras de tratamento documentadas em `docs/source_inventory.md` |
 
-## Arquitetura pretendida
+Os dados reais e sintéticos **nunca** são misturados.
 
-**Fontes → Staging no PostgreSQL → ETL (preferencialmente SQL; Python para extração XLSX quando necessário) → Data Warehouse dimensional → Power BI.**
+## Arquitetura (fase 1)
 
-Os esquemas `staging`, `dw` e `audit` são uma proposta inicial a confirmar durante o desenho técnico. Não criar fatos e dimensões sem verificar sua viabilidade nas fontes reais.
+```
+config_demo ─► gerador PL/pgSQL determinístico ─► staging_demo ─► validação ─► dw_demo (estrela) ─► bi_demo (views) ─► Power BI (Import)
+                                                       audit_demo: execuções, contagens, rejeições, validações
+```
+
+Detalhes em `docs/architecture.md`, `docs/demo_data_specification.md` e `docs/data_dictionary.md`.
+
+## Ambiente
+
+- Windows 11 Pro, Git, Python 3.14.10.
+- PostgreSQL 18.6 local (serviço `postgresql-x64-18`).
+- Power BI Desktop: instalado pelo usuário; conexão e medidas ainda não validadas.
+- Docker não é usado.
+- Configuração local: copie `.env.example` para `.env` e preencha as credenciais. Use `PG_BIN` se o `psql` não estiver no PATH.
 
 ## Estrutura do repositório
 
 ```text
 .
-├── CLAUDE.md
-├── README.md
-├── .env.example
-├── .gitignore
-├── docs/
-│   ├── decisions/
-│   ├── referencia/       # arquivos locais de referência; ignorados pelo Git
-│   ├── architecture.md
-│   ├── source_inventory.md
-│   ├── pending_questions.md
-│   ├── data_dictionary.md
-│   ├── etl_mapping.md
-│   ├── indicator_catalog.md
-│   └── implementation_plan.md
-├── data/
-│   ├── raw/               # fontes comerciais; ignoradas pelo Git
-│   └── processed/         # arquivos derivados locais; ignorados pelo Git
-├── db/
-│   ├── migrations/
-│   └── views/
-├── etl/
-│   ├── python/
-│   └── sql/
-├── powerbi/
-├── prompts/
-├── scripts/
-└── tests/
+├── CLAUDE.md, README.md, .env.example
+├── data/raw/           # fontes reais (ignorado pelo Git; não usadas na fase 1)
+├── data/processed/     # derivados locais (ignorado pelo Git)
+├── db/migrations/      # criação dos esquemas e tabelas
+├── db/views/           # views bi_demo
+├── etl/sql/demo/       # gerador, validação, cargas e qualidade (fase 1)
+├── etl/python/         # leitura de XLSX (fase 2)
+├── scripts/            # execução (PowerShell + psql)
+├── tests/sql/          # testes SQL
+├── powerbi/            # DAX, modelo, páginas, conexão, checklist
+└── docs/               # arquitetura, especificação, dicionário, ETL, qualidade, indicadores, decisões
+    └── referencia/     # documentos acadêmicos locais (ignorado pelo Git)
 ```
+
+## Execução
+
+A implementação da fase 1 está **concluída e validada estaticamente** (verificador SQL e parser do PowerShell). Ela **aguarda execução e validação no PostgreSQL 18.6**: o banco ainda não foi criado e nenhuma migration foi aplicada. Passo a passo detalhado em `docs/etl_runbook.md`. Execute a partir da raiz, no PowerShell:
+
+```powershell
+python tests\estatico\verificar_sql.py                                         # validação estática (sem banco)
+powershell -ExecutionPolicy Bypass -File scripts\criar_banco.ps1               # cria PGDATABASE (confirmação)
+powershell -ExecutionPolicy Bypass -File scripts\run_migrations.ps1            # schemas *_demo, funções, views
+powershell -ExecutionPolicy Bypass -File scripts\run_demo_etl.ps1              # gera, valida e carrega a demo
+powershell -ExecutionPolicy Bypass -File scripts\run_tests.ps1 -ComReexecucao  # testes + idempotência
+```
+
+`scripts\reset_demo.ps1` (destrutivo, só dados sintéticos, exige a frase de confirmação) e `scripts\registrar_preco_ouro.ps1` (registro ou correção versionada do preço do ouro) devem ser usados somente quando autorizados.
 
 ## Segurança e versionamento
 
-- Não versionar planilhas reais, dados de clientes, documentos comerciais privados, backups de banco, `.env` ou credenciais.
-- Colocar fontes locais em `data/raw/`. Essa pasta é ignorada pelo Git.
-- Colocar documentos de referência locais em `docs/referencia/`. Essa pasta é ignorada pelo Git.
-- O arquivo `.env.example` contém apenas nomes de variáveis e valores ilustrativos; nunca coloque credenciais reais nele.
-- Antes de cada commit, revisar `git status` e o conteúdo que será enviado.
-
-## Próximos passos
-
-1. Abrir este repositório no Claude Code.
-2. Pedir a inspeção do repositório e do ambiente, seguindo `CLAUDE.md`.
-3. Disponibilizar localmente os arquivos XLSX de produtos/estoque, compras e vendas em `data/raw/`, sem enviá-los ao GitHub.
-4. Inspecionar as fontes e documentar campos, volume, datas, qualidade e granularidade.
-5. Definir o modelo dimensional com base nos dados observados.
-6. Instalar/configurar PostgreSQL e Power BI Desktop seguindo as instruções que forem aprovadas.
-7. Implementar staging, ETL, Data Warehouse, testes e relatórios gradualmente.
-
-## Primeira solicitação ao Claude Code
-
-Use o texto de `prompts/primeira_execucao.md`. O Claude Code deve começar pelo diagnóstico, não pela criação automática de um modelo presumido.
+- Não versionar `data/raw/`, `data/processed/`, `docs/referencia/`, `.env`, credenciais, dumps ou PBIX.
+- Não registrar dados pessoais ou comerciais reais em código, logs ou documentação.
+- Revisar `git status` antes de qualquer commit.

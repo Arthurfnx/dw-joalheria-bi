@@ -1,0 +1,105 @@
+table 'bi_demo vw_associacao_tipos'
+	lineageTag: c4c2eaaa-501a-41fd-99f7-5e8733b77934
+
+	column antecedente
+		dataType: string
+		lineageTag: 61da8a43-bfaf-4595-a178-a8c3ec4608f1
+		summarizeBy: none
+		sourceColumn: antecedente
+
+		annotation SummarizationSetBy = Automatic
+
+	column consequente
+		dataType: string
+		lineageTag: c2c32b42-32e0-498c-8359-06431426bcbc
+		summarizeBy: none
+		sourceColumn: consequente
+
+		annotation SummarizationSetBy = Automatic
+
+	column vendas_com_ambos
+		dataType: int64
+		formatString: 0
+		lineageTag: 93f6c839-df9f-4f0c-96ac-f8407f5c6aad
+		summarizeBy: none
+		sourceColumn: vendas_com_ambos
+
+		annotation SummarizationSetBy = Automatic
+
+	column vendas_com_antecedente
+		dataType: int64
+		formatString: 0
+		lineageTag: 97e91dc6-7851-4de3-a7a1-4f239fcccb2e
+		summarizeBy: none
+		sourceColumn: vendas_com_antecedente
+
+		annotation SummarizationSetBy = Automatic
+
+	column vendas_com_consequente
+		dataType: int64
+		formatString: 0
+		lineageTag: 9cce2076-0670-4877-b3fd-d76562ba062e
+		summarizeBy: none
+		sourceColumn: vendas_com_consequente
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_vendas
+		dataType: int64
+		formatString: 0
+		lineageTag: 52bd4652-daec-4bdd-9f31-e82492a1792e
+		summarizeBy: none
+		sourceColumn: total_vendas
+
+		annotation SummarizationSetBy = Automatic
+
+	column suporte
+		dataType: double
+		lineageTag: 34cf673f-e84e-4813-abf6-8ece948459bf
+		summarizeBy: none
+		sourceColumn: suporte
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column confianca
+		dataType: double
+		lineageTag: 72c17349-76fb-4545-8c4a-6c8bc4b5994d
+		summarizeBy: none
+		sourceColumn: confianca
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column lift
+		dataType: double
+		lineageTag: 9c57cd0d-fd1c-42c9-b6ec-1e792c6659e8
+		summarizeBy: none
+		sourceColumn: lift
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column origem_dado
+		dataType: string
+		isHidden
+		lineageTag: aafc9f30-bb9f-44c9-8c15-60d2908eb8ab
+		summarizeBy: none
+		sourceColumn: origem_dado
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'bi_demo vw_associacao_tipos' = m
+		mode: import
+		source =
+				let
+				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    bi_demo_vw_associacao_tipos = Fonte{[Schema="bi_demo",Item="vw_associacao_tipos"]}[Data]
+				in
+				    bi_demo_vw_associacao_tipos
+
+	annotation PBI_ResultType = Table
+
