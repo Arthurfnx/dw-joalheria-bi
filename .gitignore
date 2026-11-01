@@ -52,3 +52,6 @@ Thumbs.db
 # Power BI PBIP: configurações locais e cache de dados (não versionar)
 **/.pbi/localSettings.json
 **/.pbi/cache.abf
+
+# Memória e instruções pessoais do Claude Code
+/CLAUDE.md
