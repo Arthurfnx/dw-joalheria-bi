@@ -21,12 +21,13 @@ Scripts Node.js usados para construir as páginas do relatório
 
 | Arquivo | Página (ID PBIR) | O que faz |
 |---|---|---|
-| `pbir_lib.js` | — | Biblioteca comum das páginas 2 a 6: cabeçalho com aviso, filtros, cartões de KPI, gráficos de barras/colunas, gravação da página |
+| `pbir_lib.js` | — | Biblioteca comum das páginas 2 a 7: cabeçalho com aviso, filtros, cartões de KPI, gráficos de barras/colunas, gravação da página |
 | `gerar_visao_geral.js` | Visão Geral (`a7c3e91f5b2d48e6a0f1`) | Página 1; também grava o tema `JoalheriaGrafite-9c41d7a2.json`, registra-o em `report.json` e ajusta `pages.json`. Não usa `pbir_lib.js` |
 | `gerar_paginas_2_3.js` | Estoque e Produtos (`b2d4f60a1c3e5a7b9d02`), Vendas (`c3e5a7b9d1f2a4c6e803`) | Argumento `2`, `3` ou `todas` |
 | `gerar_pagina_4.js` | Compras e Custos (`d4f6a8c0e2b4d6f8a004`) | |
 | `gerar_pagina_5.js` | Movimentações de Estoque (`e5a7c9e1f3b5d7f9a005`) | |
 | `gerar_pagina_6.js` | Sazonalidade e Associação (`f6b8d0a2c4e6f8a0b006`) | |
+| `gerar_pagina_7.js` | Análise de Estoque sem Venda e Movimentação (`b7e3c9d1f5a7b9c1d007`) | Gera a página com 12 visuais: cabeçalho, 4 segmentações, faixa de 5 cartões, observação, tabelas de Ouro e de Prata/Folheado, nota "Como ler". Insere a página logo após a página 6 em `pages.json` e preserva `activePageName`. Único argumento: a pasta `.Report` de destino (`node tools\powerbi\gerar_pagina_7.js $rep`); não executar sem ele. Sem argumento ou com caminho inválido, apenas mostra o uso e encerra com código 1, sem gravar nada (testado em 2026-11-01). **Criado em 2026-11-01** numa cópia de trabalho do PBIP |
 | `exportar_medidas_dax.js` | — | Lê `Medidas.tmdl` (somente leitura) e gera `powerbi/measures.dax`. **Criado na consolidação de 2026-11-01** (não fazia parte da construção) |
 | `ajustes/*.js` | páginas 5 e 6 | Correções pontuais aplicadas depois da geração (ver abaixo) |
 
@@ -69,8 +70,10 @@ Para aplicar no projeto oficial (somente com autorização), informar explicitam
 2. gerar, validar, recarregar (`--reload`) e capturar a página;
 3. salvar no Desktop (Ctrl+S): todo reload deixa o Desktop com alterações pendentes.
 
-As medidas usadas pelas páginas precisam existir no modelo (foram criadas pelo Power BI Modeling MCP;
-estão em `Medidas.tmdl`). Os geradores não criam medidas.
+As medidas usadas pelas páginas precisam existir no modelo (estão em `Medidas.tmdl`). As das páginas 1 a 6
+foram criadas pelo Power BI Modeling MCP; as 11 da página 7 (pasta "06 - Estoque sem Venda e Movimentação")
+foram acrescentadas ao `Medidas.tmdl` de uma cópia de trabalho e depois integradas ao PBIP. Os geradores não
+criam medidas.
 
 ## Divergências entre os geradores e o PBIR atual
 
@@ -81,6 +84,7 @@ estão em `Medidas.tmdl`). Os geradores não criam medidas.
 | Compras e Custos | Corresponde (inclui a unidade de exibição "Nenhuma" nos KPIs) |
 | Movimentações de Estoque | Corresponde (inclui larguras 656/344 e o subtítulo final) |
 | Sazonalidade e Associação | O gerador sozinho produz a tabela de janelas anterior (coluna Ano, fonte 8, título "Janelas comerciais por ano"). A versão aprovada é reproduzida pela sequência abaixo |
+| Análise de Estoque sem Venda e Movimentação | Corresponde. Conferido em 2026-11-01 numa cópia temporária, com a pasta da página removida antes da geração: 13 arquivos nos dois lados, 9 com JSON idêntico; nos 4 restantes (as segmentações), a única diferença é `"active": true`; `pages.json` com o mesmo conteúdo; validação com o mesmo resultado do PBIR versionado |
 
 Em todas as páginas, o PBIR salvo pelo Desktop contém propriedades padrão adicionais que os
 geradores não escrevem.
@@ -132,6 +136,11 @@ de uma cópia de trabalho.
 
 Recuperados em 2026-11-01 da pasta temporária da sessão do Claude Code que construiu o relatório.
 Os originais são mantidos em um backup local, fora do repositório.
+
+`gerar_pagina_7.js` não foi recuperado: foi escrito em 2026-11-01 na pasta de trabalho da página 7, fora do
+repositório, e versionado depois. Em relação ao original, só mudou o cabeçalho, para seguir a convenção acima:
+o original recebia também a pasta de `pbir_lib.js` como 2º argumento; o versionado carrega `./pbir_lib` e
+recebe apenas a pasta `.Report`.
 
 Alterações em relação aos originais (nenhuma muda a lógica dos visuais):
 - todos os geradores e ajustes exigem a pasta `.Report` de destino e mostram uma mensagem de uso

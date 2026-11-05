@@ -4,7 +4,7 @@
 // Fonte da verdade: powerbi/relatorio_joalheria_demo.SemanticModel/definition/tables/Medidas.tmdl
 // Este arquivo NÃO é lido pelo Power BI. Para alterar uma medida, altere o modelo
 // (Power BI Desktop ou Power BI Modeling MCP), salve o PBIP e exporte de novo.
-// Medidas exportadas: 50. Tabela: Medidas. Ambiente DEMONSTRATIVO (dados sintéticos).
+// Medidas exportadas: 61. Tabela: Medidas. Ambiente DEMONSTRATIVO (dados sintéticos).
 // Nomes de tabela como no modelo: 'bi_demo vw_<view>' (views do esquema bi_demo).
 // =============================================================================
 
@@ -525,3 +525,203 @@ DEFINE
             COUNTROWS( 'bi_demo vw_associacao_tipos' ) = 1,
             MAX( 'bi_demo vw_associacao_tipos'[lift] )
         )
+
+    // -------------------------------------------------------------------------
+    // Pasta: 06 - Estoque sem Venda e Movimentação
+    // -------------------------------------------------------------------------
+
+    // Data da última venda do produto até a data de referência ([Data da Posição de Estoque]), ignorando o início do período filtrado: uma venda anterior ao período continua sendo a última venda. Vazia quando não há venda até a referência. Respeita os filtros de produto. Com vários produtos no contexto, é a venda mais recente entre eles. Dados sintéticos da demo.
+    // Formato: dd/MM/yyyy
+    MEASURE 'Medidas'[Última Venda até a Referência] =
+        VAR _ref = [Data da Posição de Estoque]
+        VAR _ultima =
+            CALCULATE(
+                MAX( 'bi_demo vw_fato_venda_item'[data_hora_venda] ),
+                REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                'bi_demo vw_dim_data'[data] <= _ref
+            )
+        RETURN
+            IF(
+                ISBLANK( _ref ) || ISBLANK( _ultima ),
+                BLANK(),
+                DATE( YEAR( _ultima ), MONTH( _ultima ), DAY( _ultima ) )
+            )
+
+    // Dias entre a data de referência ([Data da Posição de Estoque]) e a Última Venda até a Referência. Vazio quando o produto nunca foi vendido até a referência. No nível do produto/modelo: não indica há quanto tempo cada unidade está em estoque. Unidade: dias.
+    // Formato: #,0
+    MEASURE 'Medidas'[Dias sem Venda] =
+        VAR _ref = [Data da Posição de Estoque]
+        VAR _ultima = [Última Venda até a Referência]
+        RETURN
+            IF( ISBLANK( _ultima ), BLANK(), INT( _ref - _ultima ) )
+
+    // Data do último evento de movimentação do produto até a data de referência, excluindo SALDO_INICIAL (implantação do estoque). Considera os tipos existentes: ENTRADA_COMPRA, SAIDA_VENDA, SAIDA_PRESENTE, SAIDA_ROUBO, AJUSTE_POSITIVO e AJUSTE_NEGATIVO. Ignora o início do período filtrado e o filtro de tipo de movimentação. Vazia quando só há o saldo inicial.
+    // Formato: dd/MM/yyyy
+    MEASURE 'Medidas'[Última Movimentação até a Referência] =
+        VAR _ref = [Data da Posição de Estoque]
+        VAR _ultima =
+            CALCULATE(
+                MAX( 'bi_demo vw_fato_movimentacao_estoque'[data_hora_evento] ),
+                REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                'bi_demo vw_dim_data'[data] <= _ref,
+                REMOVEFILTERS( 'bi_demo vw_dim_tipo_movimentacao' ),
+                'bi_demo vw_dim_tipo_movimentacao'[codigo_tipo] <> "SALDO_INICIAL"
+            )
+        RETURN
+            IF(
+                ISBLANK( _ref ) || ISBLANK( _ultima ),
+                BLANK(),
+                DATE( YEAR( _ultima ), MONTH( _ultima ), DAY( _ultima ) )
+            )
+
+    // Dias entre a data de referência e a Última Movimentação até a Referência (sem SALDO_INICIAL). Vazio quando o produto não teve movimentação após o saldo inicial. Ausência de movimentação é diferente de ausência de venda: compras, presentes e ajustes também são movimentações. Unidade: dias.
+    // Formato: #,0
+    MEASURE 'Medidas'[Dias sem Movimentação] =
+        VAR _ref = [Data da Posição de Estoque]
+        VAR _ultima = [Última Movimentação até a Referência]
+        RETURN
+            IF( ISBLANK( _ultima ), BLANK(), INT( _ref - _ultima ) )
+
+    // Data da última entrada por compra do produto até a data de referência. Entrada = tipos de natureza 'entrada' na dimensão (nesta demo, somente ENTRADA_COMPRA). Não inclui SALDO_INICIAL (implantação) nem AJUSTE_POSITIVO (ajuste de inventário). Vazia quando o produto nunca foi comprado após o saldo inicial.
+    // Formato: dd/MM/yyyy
+    MEASURE 'Medidas'[Última Entrada por Compra] =
+        VAR _ref = [Data da Posição de Estoque]
+        VAR _ultima =
+            CALCULATE(
+                MAX( 'bi_demo vw_fato_movimentacao_estoque'[data_hora_evento] ),
+                REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                'bi_demo vw_dim_data'[data] <= _ref,
+                REMOVEFILTERS( 'bi_demo vw_dim_tipo_movimentacao' ),
+                'bi_demo vw_dim_tipo_movimentacao'[natureza] = "entrada"
+            )
+        RETURN
+            IF(
+                ISBLANK( _ref ) || ISBLANK( _ultima ),
+                BLANK(),
+                DATE( YEAR( _ultima ), MONTH( _ultima ), DAY( _ultima ) )
+            )
+
+    // Situação do produto até a data de referência, em texto, para a tabela detalhada: nunca vendido sem movimentação após o saldo inicial; nunca vendido com movimentação (compras, presentes ou ajustes); ou já vendido. Não classifica por faixas de dias. Vazia fora do nível de um único produto.
+    // Formato: (texto / padrão)
+    MEASURE 'Medidas'[Situação de Venda e Movimentação] =
+        VAR _venda = [Última Venda até a Referência]
+        VAR _mov = [Última Movimentação até a Referência]
+        RETURN
+            IF(
+                NOT HASONEVALUE( 'bi_demo vw_dim_produto'[produto_key] ) || ISBLANK( [Data da Posição de Estoque] ),
+                BLANK(),
+                IF(
+                    ISBLANK( _venda ),
+                    IF(
+                        ISBLANK( _mov ),
+                        "Nunca vendido · sem movimentação após o saldo inicial",
+                        "Nunca vendido · com movimentação registrada"
+                    ),
+                    "Já vendido · ver dias sem venda"
+                )
+            )
+
+    // Quantidade de produtos/modelos com saldo maior que zero na posição de estoque de referência ([Data da Posição de Estoque]). Respeita os filtros de Material e Tipo de peça. Unidade: produtos (não é quantidade de peças).
+    // Formato: #,0
+    MEASURE 'Medidas'[Produtos com Estoque] =
+        VAR _ref = [Data da Posição de Estoque]
+        RETURN
+            IF(
+                ISBLANK( _ref ),
+                BLANK(),
+                COUNTROWS(
+                    FILTER(
+                        VALUES( 'bi_demo vw_dim_produto'[produto_key] ),
+                        CALCULATE(
+                            SUM( 'bi_demo vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+                            REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                            'bi_demo vw_dim_data'[data] = _ref
+                        ) > 0
+                    )
+                ) + 0
+            )
+
+    // Produtos com saldo maior que zero na posição de referência e nenhuma venda registrada no histórico até essa data (não apenas no período filtrado). Unidade: produtos.
+    // Formato: #,0
+    MEASURE 'Medidas'[Produtos em Estoque sem Venda Registrada] =
+        VAR _ref = [Data da Posição de Estoque]
+        RETURN
+            IF(
+                ISBLANK( _ref ),
+                BLANK(),
+                COUNTROWS(
+                    FILTER(
+                        VALUES( 'bi_demo vw_dim_produto'[produto_key] ),
+                        CALCULATE(
+                            SUM( 'bi_demo vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+                            REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                            'bi_demo vw_dim_data'[data] = _ref
+                        ) > 0
+                            && ISBLANK( [Última Venda até a Referência] )
+                    )
+                ) + 0
+            )
+
+    // Produtos com saldo maior que zero na posição de referência e nenhum evento de movimentação além do SALDO_INICIAL até essa data. É um subconjunto dos produtos sem venda registrada (toda venda gera movimentação). Unidade: produtos.
+    // Formato: #,0
+    MEASURE 'Medidas'[Produtos em Estoque sem Movimentação após o Saldo Inicial] =
+        VAR _ref = [Data da Posição de Estoque]
+        RETURN
+            IF(
+                ISBLANK( _ref ),
+                BLANK(),
+                COUNTROWS(
+                    FILTER(
+                        VALUES( 'bi_demo vw_dim_produto'[produto_key] ),
+                        CALCULATE(
+                            SUM( 'bi_demo vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+                            REMOVEFILTERS( 'bi_demo vw_dim_data' ),
+                            'bi_demo vw_dim_data'[data] = _ref
+                        ) > 0
+                            && ISBLANK( [Última Movimentação até a Referência] )
+                    )
+                ) + 0
+            )
+
+    // Chave numérica da ordem de exibição da página de estoque sem venda e movimentação (auxiliar, oculta). Grupo 1 = nunca vendido e sem movimentação após o saldo inicial (mais unidades primeiro); grupo 2 = nunca vendido com movimentação (movimentação mais antiga primeiro); grupo 3 = já vendido (mais dias sem venda e, no empate, mais dias sem movimentação). Desempate final pela chave do produto. Não altera nenhum indicador.
+    // Formato: 0
+    MEASURE 'Medidas'[_Chave da Ordem de Exibição] =
+        VAR _venda = [Última Venda até a Referência]
+        VAR _mov = [Última Movimentação até a Referência]
+        VAR _grupo = IF( ISBLANK( _venda ), IF( ISBLANK( _mov ), 1, 2 ), 3 )
+        VAR _criterio1 =
+            SWITCH(
+                _grupo,
+                1, [Estoque Atual (Peças)],
+                2, [Dias sem Movimentação],
+                [Dias sem Venda]
+            )
+        VAR _criterio2 = IF( _grupo = 3, [Dias sem Movimentação], 0 )
+        RETURN
+            IF(
+                HASONEVALUE( 'bi_demo vw_dim_produto'[produto_key] ) && NOT ISBLANK( [Data da Posição de Estoque] ),
+                _grupo * 10000000000
+                    + ( 1000 - COALESCE( _criterio1, 0 ) ) * 1000000
+                    + ( 1000 - COALESCE( _criterio2, 0 ) ) * 1000
+                    + MAX( 'bi_demo vw_dim_produto'[produto_key] )
+            )
+
+    // Posição do produto na lista da página de estoque sem venda e movimentação (1 = primeiro): nunca vendidos sem movimentação, depois nunca vendidos com movimentação, depois já vendidos por dias sem venda decrescentes. Considera somente produtos com estoque maior que zero dentro dos filtros aplicados (slicers e filtros do visual). Só para ordenar a exibição; não é indicador nem faixa de classificação.
+    // Formato: 0
+    MEASURE 'Medidas'[Ordem de Exibição] =
+        VAR _chave = [_Chave da Ordem de Exibição]
+        RETURN
+            IF(
+                ISBLANK( _chave ) || NOT ( [Estoque Atual (Peças)] > 0 ),
+                BLANK(),
+                CALCULATE(
+                    RANKX(
+                        FILTER( VALUES( 'bi_demo vw_dim_produto'[produto_key] ), [Estoque Atual (Peças)] > 0 ),
+                        [_Chave da Ordem de Exibição],
+                        _chave,
+                        ASC,
+                        DENSE
+                    ),
+                    ALLSELECTED( 'bi_demo vw_dim_produto' )
+                )
+            )
