@@ -60,3 +60,19 @@ Alterações feitas nas cópias:
   - `decimo_lift_min5` ordenava pela coluna de saída `lift::text` (ordem alfabética) e retornava 7,084403; agora ordena pela coluna numérica e retorna 7,178862, igual ao Power BI.
 
 Todos foram executados com sucesso a partir do repositório em 2026-11-01.
+
+## Relatório real (`powerbi/relatorio_joalheria.pbip`, esquema `bi`) — T04
+
+`conferir_relatorio_real.ps1` recalcula no SQL, somente leitura, os indicadores das páginas do relatório
+real sobre o esquema `bi` (período completo, sem filtros), com as mesmas regras das medidas DAX:
+receita sem valor simbólico e separada por origem (`APLICACAO`/`PLANILHA`), número de vendas e ticket
+só com vendas do sistema, estoque na última posição diária, compras por peça, movimentações por tipo,
+preço do ouro vigente e quantidade de regras de associação. Não imprime nomes nem descrições.
+
+Os valores mudam a cada carga (`scripts\run_etl_app.ps1`); compare-os com os cartões do relatório depois
+de **Atualizar** no Power BI Desktop. Conferências complementares do DW real em `tests/dw_real/`:
+
+| Script | O que confere |
+|---|---|
+| `tests/dw_real/conferir_demo_intacto.ps1` | Objetos, linhas e definições dos esquemas `*_demo` antes × depois das migrations reais (`-Gravar` / `-Comparar`) |
+| `tests/dw_real/conferir_sem_nomes.ps1` | Nenhum nome de `consignado_com` em `staging`, `dw` e `bi` (comparação por md5, sem imprimir nomes) |

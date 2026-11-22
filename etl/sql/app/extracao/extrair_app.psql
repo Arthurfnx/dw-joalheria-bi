@@ -1,0 +1,145 @@
+-- =============================================================================
+-- extrair_app.psql — EXTRAÇÃO do banco operacional nobreza_app para CSV.
+-- Script do psql (não é SQL puro: usa \g), executado por
+-- scripts/run_etl_app.ps1 conectado como nobreza_leitura_dw, com a variável
+-- dir = pasta de saída (data/processed/etl_app, sem espaços no caminho).
+--
+-- Tudo numa única transação REPEATABLE READ somente leitura: os CSV e as
+-- contagens de origem (extracao.csv) descrevem o mesmo instante.
+--
+-- Nunca extrair: consignado_com, local_original (nomes de pessoas), usuário,
+-- sessão, auditoria, observação, motivo, vendedor nem quem registrou. Além do
+-- papel não ter acesso a essas colunas e tabelas, as consultas listam as
+-- colunas uma a uma (nada de SELECT *).
+-- =============================================================================
+\set ON_ERROR_STOP on
+
+BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;
+
+-- Produtos -------------------------------------------------------------------
+COPY (
+    SELECT p.id,
+           p.codigo,
+           p.descricao,
+           m.nome AS material,
+           c.nome AS categoria,
+           c.usa_tamanho,
+           s.nome AS subcategoria,
+           p.modo_controle,
+           p.peso_gramas,
+           p.tamanho,
+           p.pedras,
+           p.preco_venda,
+           p.indice_preco,
+           p.valor_aquisicao,
+           p.data_aquisicao,
+           -- Só os locais fixos; a pessoa da consignação nunca é lida.
+           CASE WHEN p.local_estoque IN ('Estoque', 'Armário', 'Maleta 1', 'Maleta 2', 'Consignado')
+                THEN p.local_estoque END AS local_estoque,
+           p.ativo,
+           p.criado_em,
+           (o.produto_id IS NOT NULL) AS importado_planilha,
+           o.situacao_original,
+           app.preco_sugerido(p.id, (now() AT TIME ZONE 'America/Sao_Paulo')::date) AS preco_sugerido_atual,
+           CASE WHEN p.data_aquisicao IS NOT NULL
+                THEN app.preco_sugerido(p.id, p.data_aquisicao) END AS preco_sugerido_aquisicao
+      FROM app.produto p
+      JOIN app.material m ON m.id = p.material_id
+      JOIN app.categoria c ON c.id = p.categoria_id
+      LEFT JOIN app.subcategoria s ON s.id = p.subcategoria_id
+      LEFT JOIN app.produto_origem o ON o.produto_id = p.id
+     ORDER BY p.id
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/produto.csv
+
+-- Tipos de movimentação --------------------------------------------------------
+COPY (
+    SELECT codigo, descricao, sinal, eh_venda, exige_motivo, origem_exigida, uso_manual
+      FROM app.tipo_movimentacao
+     ORDER BY codigo
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/tipo_movimentacao.csv
+
+-- Vendas da aplicação (sem vendedor, observação nem motivo) -------------------
+COPY (
+    SELECT id, numero, data_venda, situacao, valor_total, registrada_em
+      FROM app.venda
+     ORDER BY id
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/venda.csv
+
+COPY (
+    SELECT id, venda_id, produto_id, quantidade, preco_tabela, preco_praticado, valor_item
+      FROM app.venda_item
+     ORDER BY id
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/venda_item.csv
+
+-- Vendas históricas da planilha (sem cliente) ---------------------------------
+COPY (
+    SELECT id, produto_id, data_venda, valor_venda, valor_compra, simbolico
+      FROM app.venda_historica
+     ORDER BY id
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/venda_historica.csv
+
+-- Preço do ouro (sem quem registrou) ------------------------------------------
+COPY (
+    SELECT id, valor_grama, vigente_desde, registrado_em
+      FROM app.preco_ouro
+     ORDER BY id
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/preco_ouro.csv
+
+-- Movimentações (sem motivo nem usuário) --------------------------------------
+COPY (
+    SELECT id, produto_id, tipo_codigo, quantidade, saldo_apos, custo_unitario,
+           venda_item_id, compra_item_id, estorna_id, data_ocorrencia, registrada_em
+      FROM app.movimentacao_estoque
+     ORDER BY id
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/movimentacao_estoque.csv
+
+COPY (
+    SELECT produto_id, quantidade
+      FROM app.saldo_estoque
+     ORDER BY produto_id
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/saldo_estoque.csv
+
+COPY (
+    SELECT id, iniciado_em, concluido_em
+      FROM app.importacao_lote
+     ORDER BY id
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/importacao_lote.csv
+
+COPY (
+    SELECT chave, valor
+      FROM app.configuracao
+     WHERE chave IN ('fator_preco_ouro')
+     ORDER BY chave
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/configuracao.csv
+
+-- Contagens de origem, no mesmo instante das extrações -------------------------
+COPY (
+    SELECT t.tabela, t.linhas, now() AS extraido_em,
+           (now() AT TIME ZONE 'America/Sao_Paulo')::date AS data_referencia
+      FROM (
+            SELECT 'produto' AS tabela, count(*) AS linhas FROM app.produto
+            UNION ALL SELECT 'tipo_movimentacao', count(*) FROM app.tipo_movimentacao
+            UNION ALL SELECT 'venda', count(*) FROM app.venda
+            UNION ALL SELECT 'venda_item', count(*) FROM app.venda_item
+            UNION ALL SELECT 'venda_historica', count(*) FROM app.venda_historica
+            UNION ALL SELECT 'preco_ouro', count(*) FROM app.preco_ouro
+            UNION ALL SELECT 'movimentacao_estoque', count(*) FROM app.movimentacao_estoque
+            UNION ALL SELECT 'saldo_estoque', count(*) FROM app.saldo_estoque
+            UNION ALL SELECT 'importacao_lote', count(*) FROM app.importacao_lote
+            UNION ALL SELECT 'configuracao', count(*) FROM app.configuracao WHERE chave IN ('fator_preco_ouro')
+           ) t
+     ORDER BY t.tabela
+) TO STDOUT WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+\g :dir/extracao.csv
+
+COMMIT;

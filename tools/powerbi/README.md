@@ -75,6 +75,21 @@ foram criadas pelo Power BI Modeling MCP; as 11 da página 7 (pasta "06 - Estoqu
 foram acrescentadas ao `Medidas.tmdl` de uma cópia de trabalho e depois integradas ao PBIP. Os geradores não
 criam medidas.
 
+## Relatório real (`criar_relatorio_real.js`, T04 — 2026-11-22)
+
+`criar_relatorio_real.js` cria a cópia `powerbi/relatorio_joalheria.*` (ligada ao esquema `bi` do DW
+real) a partir do relatório demonstrativo, **sem alterar o demonstrativo**. Faz só a parte mecânica:
+copia as pastas (sem `.pbi/localSettings.json` nem `.pbi/cache.abf`), troca `bi_demo` por `bi`,
+renomeia os `.tmdl` das tabelas, gera `logicalId` fixos, zera os metadados linguísticos da cultura
+e troca os textos das páginas (aviso demonstrativo, subtítulos e bloco "Sobre os dados").
+Recusa gravar se o destino já existir.
+
+Depois da cópia, o modelo foi ajustado à mão (fonte da verdade: os arquivos versionados):
+colunas novas e renomeadas nas tabelas `bi vw_fato_venda_item` (`id_venda`, `valor_simbolico`,
+`entra_faturamento`, `valor_faturado`), `bi vw_fato_compra_item` (sem identificador de compra),
+`bi vw_fato_movimentacao_estoque`, `bi vw_dim_produto` e `bi vw_info_ambiente`; medidas de vendas,
+compras e movimentações revisadas e 8 medidas novas (ver `powerbi/connection_guide.md`).
+
 ## Divergências entre os geradores e o PBIR atual
 
 | Página | Situação do gerador |

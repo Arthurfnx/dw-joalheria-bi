@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "relatorio_joalheria"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "5d2c8e41-7a3b-4f6e-9c1d-2b8a4e6f0c13"
+  }
+}

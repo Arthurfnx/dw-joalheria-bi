@@ -1,0 +1,985 @@
+table Medidas
+	lineageTag: 3b70672b-9680-4615-9d6e-fd7f0b9a578d
+
+	/// Soma de valor_faturado em bi.vw_fato_venda_item: valor efetivamente cobrado (quantidade × preço praticado) das vendas que entram no faturamento. Inclui as vendas registradas no sistema (origem APLICACAO) e as vendas históricas da planilha (origem PLANILHA); exclui as vendas da planilha com valor simbólico (R$ 0,01) ou sem valor. Para separar as origens, use Receita Realizada - Aplicação e Receita Realizada - Planilha ou a coluna origem_dado. Unidade: R$.
+	measure 'Receita Realizada' =
+			
+			SUM(
+			    'bi vw_fato_venda_item'[valor_faturado]
+			)
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 01 - Vendas
+		lineageTag: 8dfccd22-aac9-4fcb-bdbb-c2413470c633
+
+		annotation PBI_FormatHint = {"currencyCulture":"pt-BR"}
+
+	/// Texto formatado de Receita Realizada (R$ com duas casas, padrão pt-BR) para cartões e títulos. Retorna vazio quando não há receita. Por ser texto, não usar em gráficos nem para ordenar.
+	measure 'Receita Realizada (Exibição)' =
+			
+			VAR _valor = [Receita Realizada]
+			RETURN
+			    IF(
+			        ISBLANK(_valor),
+			        BLANK(),
+			        FORMAT(_valor, "R$ #,##0.00", "pt-BR")
+			    )
+		displayFolder: 01 - Vendas
+		lineageTag: 0bf32f4b-8f72-412c-801e-445d4a419e67
+
+	/// Soma de quantidade_vendida em bi.vw_fato_venda_item, das duas origens (APLICACAO e PLANILHA), inclusive vendas históricas sem valor ou com valor simbólico. Unidade: peças (não mistura com peso). Inclui apenas vendas; perdas e presentes não entram. Vendas canceladas no sistema não entram.
+	measure 'Quantidade Vendida' =
+			
+			SUM(
+			    'bi vw_fato_venda_item'[quantidade_vendida]
+			)
+		formatString: #,0
+		displayFolder: 01 - Vendas
+		lineageTag: e042d6c4-77ab-4ab8-aa8c-c4128928ce47
+
+	/// Vendas distintas registradas no sistema (contagem do número de venda, id_venda, que só existe nas vendas de origem APLICACAO). As vendas históricas da planilha não têm identificador de transação e não são contadas (RN-73). Unidade: vendas.
+	measure 'Número de Vendas' =
+			
+			DISTINCTCOUNTNOBLANK(
+			    'bi vw_fato_venda_item'[id_venda]
+			)
+		formatString: #,0
+		displayFolder: 01 - Vendas
+		lineageTag: a7be4268-f1be-4511-b8d3-4c3da09f86b4
+
+	/// Receita das vendas registradas no sistema (origem APLICACAO) ÷ Número de Vendas. Não usa as vendas da planilha, que não têm número de venda (RN-73). Vazio enquanto não houver vendas registradas no sistema. Unidade: R$ por venda.
+	measure 'Ticket Médio' =
+			
+			DIVIDE(
+			    CALCULATE(
+			        [Receita Realizada],
+			        KEEPFILTERS( 'bi vw_fato_venda_item'[origem_dado] = "APLICACAO" )
+			    ),
+			    [Número de Vendas]
+			)
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 01 - Vendas
+		lineageTag: de781556-0220-4f7b-81df-00b35bee4bd8
+
+		annotation PBI_FormatHint = {"currencyCulture":"pt-BR"}
+
+	/// Texto formatado de Número de Vendas (separador de milhar pt-BR), para cartões e títulos. Retorna vazio quando não há vendas registradas no sistema.
+	measure 'Número de Vendas (Exibição)' =
+			
+			VAR _valor = [Número de Vendas]
+			RETURN
+			    IF(
+			        ISBLANK(_valor),
+			        BLANK(),
+			        FORMAT(_valor, "#,##0", "pt-BR")
+			    )
+		displayFolder: 01 - Vendas
+		lineageTag: ad814ba9-304c-4918-9a78-f8de27c0c5a0
+
+	/// Texto formatado de Ticket Médio (R$ com duas casas, padrão pt-BR), para cartões e títulos. Retorna vazio quando não há vendas registradas no sistema.
+	measure 'Ticket Médio (Exibição)' =
+			
+			VAR _valor = [Ticket Médio]
+			RETURN
+			    IF(
+			        ISBLANK(_valor),
+			        BLANK(),
+			        FORMAT(_valor, "R$ #,##0.00", "pt-BR")
+			    )
+		displayFolder: 01 - Vendas
+		lineageTag: ad5e6a57-05ee-4f60-8097-5daccd034b3c
+
+	/// Texto formatado de Quantidade Vendida com o sufixo 'peças', para cartões e títulos. Retorna vazio quando não há vendas. Por ser texto, não usar em gráficos nem para ordenar.
+	measure 'Quantidade Vendida (Exibição)' =
+			
+			VAR _valor = [Quantidade Vendida]
+			RETURN
+			    IF(
+			        ISBLANK(_valor),
+			        BLANK(),
+			        FORMAT(_valor, "#,##0", "pt-BR") & " peças"
+			    )
+		displayFolder: 01 - Vendas
+		lineageTag: d4cec1f9-71a6-4e8f-8fc1-263eb5d682bb
+
+	/// Saldo de estoque em peças na posição (snapshot) mais recente disponível dentro do filtro de datas. Soma os produtos de uma única data de posição; nunca soma snapshots de datas diferentes. As posições são diárias e existem somente a partir da importação da planilha: períodos anteriores ficam vazios. Unidade: peças (não é peso).
+	measure 'Estoque Atual (Peças)' =
+			
+			VAR _ultimaPosicao =
+			    LASTNONBLANK(
+			        'bi vw_dim_data'[data],
+			        CALCULATE( COUNTROWS( 'bi vw_fato_snapshot_estoque' ) )
+			    )
+			RETURN
+			    CALCULATE(
+			        SUM( 'bi vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+			        _ultimaPosicao
+			    )
+		formatString: #,0
+		displayFolder: 03 - Estoque
+		lineageTag: 5a660bab-a7ff-4633-b019-ea90c4dfa379
+
+	/// Data da posição de estoque (snapshot) mais recente dentro do filtro de datas, a mesma usada por Estoque Atual (Peças). Use para identificar a referência do saldo exibido.
+	measure 'Data da Posição de Estoque' =
+			
+			CALCULATE(
+			    LASTNONBLANK(
+			        'bi vw_dim_data'[data],
+			        CALCULATE( COUNTROWS( 'bi vw_fato_snapshot_estoque' ) )
+			    )
+			)
+		formatString: dd/MM/yyyy
+		displayFolder: 03 - Estoque
+		lineageTag: 4f780dbe-fcdd-434c-b48e-55d4122726af
+
+	/// Texto com a primeira e a última data do calendário (vw_dim_data) dentro dos filtros de Ano e Período, para títulos e blocos informativos. Sem filtro, mostra o calendário completo do DW (do ano da venda mais antiga até a data da última carga).
+	measure 'Período Selecionado (Exibição)' =
+			
+			VAR _inicio = MIN( 'bi vw_dim_data'[data] )
+			VAR _fim = MAX( 'bi vw_dim_data'[data] )
+			RETURN
+			    IF(
+			        ISBLANK( _inicio ),
+			        BLANK(),
+			        FORMAT( _inicio, "dd/MM/yyyy", "pt-BR" ) & " a " & FORMAT( _fim, "dd/MM/yyyy", "pt-BR" )
+			    )
+		displayFolder: 05 - Análises temporais
+		lineageTag: f85d6560-8eb9-469c-a1fd-0cc79015bded
+
+	/// Quantidade de produtos no cadastro (vw_dim_produto) dentro dos filtros de Material e Tipo de peça, inclusive peças já vendidas e inativas. Não depende de datas. Unidade: produtos.
+	measure 'Produtos Cadastrados' =
+			
+			COUNTROWS( 'bi vw_dim_produto' )
+		formatString: #,0
+		displayFolder: 03 - Estoque
+		lineageTag: d6a3dcc1-6da1-41b2-b8ac-b6afbaed6b4f
+
+	/// Quantidade de produtos com saldo igual a zero na posição de estoque mais recente do período filtrado (mesma data de Estoque Atual (Peças)). Produtos sem linha de snapshot nessa data não são contados. Unidade: produtos.
+	measure 'Produtos sem Estoque' =
+			
+			VAR _data = [Data da Posição de Estoque]
+			RETURN
+			    IF(
+			        ISBLANK( _data ),
+			        BLANK(),
+			        COUNTROWS(
+			            FILTER(
+			                VALUES( 'bi vw_dim_produto'[produto_key] ),
+			                VAR _qtd =
+			                    CALCULATE(
+			                        SUM( 'bi vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+			                        REMOVEFILTERS( 'bi vw_dim_data' ),
+			                        'bi vw_dim_data'[data] = _data
+			                    )
+			                RETURN NOT ISBLANK( _qtd ) && _qtd = 0
+			            )
+			        ) + 0
+			    )
+		formatString: #,0
+		displayFolder: 03 - Estoque
+		lineageTag: a5d05db9-a80d-4873-ad5f-75f692a797cd
+
+	/// Soma de quantidade_em_estoque × peso_g dos produtos de Ouro na posição de estoque mais recente do período filtrado (catálogo de indicadores: Peso em estoque (Ouro)). Unidade: gramas de peças de ouro (peso bruto da peça, não teor de ouro puro). Nunca é somado a peças. Vazio se o filtro de Material excluir Ouro.
+	measure 'Peso em Estoque Ouro (g)' =
+			
+			VAR _data = [Data da Posição de Estoque]
+			RETURN
+			    IF(
+			        ISBLANK( _data ),
+			        BLANK(),
+			        CALCULATE(
+			            SUMX(
+			                'bi vw_fato_snapshot_estoque',
+			                'bi vw_fato_snapshot_estoque'[quantidade_em_estoque]
+			                    * RELATED( 'bi vw_dim_produto'[peso_g] )
+			            ),
+			            REMOVEFILTERS( 'bi vw_dim_data' ),
+			            'bi vw_dim_data'[data] = _data,
+			            KEEPFILTERS( 'bi vw_dim_produto'[material] = "Ouro" )
+			        )
+			    )
+		formatString: #,0.0
+		displayFolder: 03 - Estoque
+		lineageTag: a06d3364-3be7-471a-a946-ec2ef699cc84
+
+	/// Estoque Atual (Peças) exibido somente para os 10 produtos com maior saldo na posição mais recente, dentro dos filtros da página; usado no ranking de estoque. Empates na 10ª posição podem exibir mais de 10 produtos.
+	measure 'Estoque Atual - Top 10 Produtos' =
+			
+			VAR _produtoAtual = SELECTEDVALUE( 'bi vw_dim_produto'[descricao] )
+			VAR _top =
+			    TOPN(
+			        10,
+			        FILTER(
+			            ALLSELECTED( 'bi vw_dim_produto'[descricao] ),
+			            [Estoque Atual (Peças)] > 0
+			        ),
+			        [Estoque Atual (Peças)], DESC
+			    )
+			RETURN
+			    IF(
+			        NOT ISBLANK( _produtoAtual ) && _produtoAtual IN _top,
+			        [Estoque Atual (Peças)]
+			    )
+		formatString: #,0
+		displayFolder: 03 - Estoque
+		lineageTag: b9b75aee-3353-428d-929c-933fb59b268d
+
+	/// Produtos com estoque positivo na posição mais recente do período e nenhuma venda (de qualquer origem) dentro do período selecionado (catálogo de indicadores: Produtos sem venda). Depende sempre do filtro de datas; sem filtro, considera todo o calendário. Unidade: produtos.
+	measure 'Produtos sem Venda no Período' =
+			
+			VAR _data = [Data da Posição de Estoque]
+			RETURN
+			    IF(
+			        ISBLANK( _data ),
+			        BLANK(),
+			        COUNTROWS(
+			            FILTER(
+			                VALUES( 'bi vw_dim_produto'[produto_key] ),
+			                ISBLANK( [Quantidade Vendida] )
+			                    && CALCULATE(
+			                        SUM( 'bi vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+			                        REMOVEFILTERS( 'bi vw_dim_data' ),
+			                        'bi vw_dim_data'[data] = _data
+			                    ) > 0
+			            )
+			        ) + 0
+			    )
+		formatString: #,0
+		displayFolder: 01 - Vendas
+		lineageTag: 228cceb2-934b-40e4-813a-ffe93e453e60
+
+	/// Soma de valor_marcado_total (preço de tabela × quantidade) dos itens vendidos que têm preço de tabela e entram no faturamento. As vendas da planilha não têm preço de tabela e ficam fora. Não é faturamento: serve de base para comparar com o valor realizado. Unidade: R$.
+	measure 'Valor Marcado Vendido' =
+			
+			SUM( 'bi vw_fato_venda_item'[valor_marcado_total] )
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 01 - Vendas
+		lineageTag: 246cbb4f-1c12-4cd0-810f-00502a2f375b
+
+	/// Receita Realizada exibida somente para os 10 produtos de maior receita dentro dos filtros da página; usada no ranking de produtos por receita. Empates na 10ª posição podem exibir mais de 10 produtos.
+	measure 'Receita - Top 10 Produtos' =
+			
+			VAR _produtoAtual = SELECTEDVALUE( 'bi vw_dim_produto'[descricao] )
+			VAR _top =
+			    TOPN(
+			        10,
+			        FILTER(
+			            ALLSELECTED( 'bi vw_dim_produto'[descricao] ),
+			            [Receita Realizada] > 0
+			        ),
+			        [Receita Realizada], DESC
+			    )
+			RETURN
+			    IF(
+			        NOT ISBLANK( _produtoAtual ) && _produtoAtual IN _top,
+			        [Receita Realizada]
+			    )
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 01 - Vendas
+		lineageTag: f626f716-6350-4778-98a1-895dbccc09b7
+
+	/// Receita Realizada ÷ peças das vendas que entram no faturamento: preço médio efetivamente cobrado por peça, ponderado pela quantidade. Não soma preços unitários. Unidade: R$ por peça.
+	measure 'Preço Médio Realizado' =
+			
+			DIVIDE(
+			    [Receita Realizada],
+			    CALCULATE( [Quantidade Vendida], KEEPFILTERS( 'bi vw_fato_venda_item'[entra_faturamento] = TRUE() ) )
+			)
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 04 - Precificação
+		lineageTag: da1f7d2d-67cb-40f9-8987-622b668a79b0
+
+	/// Valor Marcado Vendido ÷ peças vendidas com preço de tabela: preço médio de tabela por peça, ponderado pela quantidade. Só vendas registradas no sistema com preço de tabela. Unidade: R$ por peça.
+	measure 'Preço Médio Marcado' =
+			
+			DIVIDE(
+			    [Valor Marcado Vendido],
+			    CALCULATE( [Quantidade Vendida], KEEPFILTERS( NOT ISBLANK( 'bi vw_fato_venda_item'[valor_marcado_total] ) ) )
+			)
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 04 - Precificação
+		lineageTag: 36a85d3e-5da1-4338-9b84-62233f6d2bfe
+
+	/// Soma de diferenca_marcado_realizado ÷ Valor Marcado Vendido (catálogo: Diferença marcado × realizado em %), só para itens com preço de tabela (vendas registradas no sistema). Positivo = desconto; negativo = venda acima do preço de tabela.
+	measure 'Desconto sobre Valor Marcado (%)' =
+			
+			DIVIDE(
+			    SUM( 'bi vw_fato_venda_item'[diferenca_marcado_realizado] ),
+			    [Valor Marcado Vendido]
+			)
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: 04 - Precificação
+		lineageTag: ce08f417-0ba3-4baf-8169-8310fe5f18cf
+
+	/// Soma de custo_total_pago (valor de aquisição) das peças com data de aquisição no cadastro (bi.vw_fato_compra_item). Peças sem data de aquisição (o ouro, até o cliente preencher) não entram. Unidade: R$. Não é CMV.
+	measure 'Custo Total das Compras' =
+			
+			SUM( 'bi vw_fato_compra_item'[custo_total_pago] )
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 02 - Compras
+		lineageTag: 25dd9c1a-d33d-4321-84d3-e7d134023f53
+
+	/// Soma de quantidade_recebida das peças com data de aquisição (uma peça por linha). Unidade: peças (não é peso). Não inclui saldo inicial nem outras movimentações de estoque.
+	measure 'Quantidade Adquirida' =
+			
+			SUM( 'bi vw_fato_compra_item'[quantidade_recebida] )
+		formatString: #,0
+		displayFolder: 02 - Compras
+		lineageTag: deb051cd-e999-4c2e-b7ce-c42a5aefdf2a
+
+	/// Quantidade de registros de aquisição (uma linha por peça com data de aquisição no cadastro). A planilha não agrupa as peças em compras ou notas, portanto não existe contagem de compras. Unidade: peças registradas.
+	measure 'Entradas de Compra' =
+			
+			COUNTROWS( 'bi vw_fato_compra_item' )
+		formatString: #,0
+		displayFolder: 02 - Compras
+		lineageTag: b61f8ed9-a8ad-4a48-b124-a5d07dc05ffc
+
+	/// SUM(custo_total_pago) ÷ SUM(quantidade_recebida): custo médio de aquisição por peça, ponderado pela quantidade. Não soma custos unitários. NÃO é CMV nem valorização contábil do estoque; margem não é calculada. Em uma linha de compra isolada equivale ao custo unitário da linha. Unidade: R$ por peça.
+	measure 'Custo Médio Ponderado de Aquisição' =
+			
+			DIVIDE( [Custo Total das Compras], [Quantidade Adquirida] )
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 02 - Compras
+		lineageTag: b632e57b-287c-4710-89fd-ddd030f80d05
+
+	/// Custo Total das Compras exibido somente para os 10 produtos de maior custo de aquisição dentro dos filtros da página; usado no ranking. Empates na 10ª posição podem exibir mais de 10 produtos.
+	measure 'Custo Total - Top 10 Produtos' =
+			
+			VAR _produtoAtual = SELECTEDVALUE( 'bi vw_dim_produto'[descricao] )
+			VAR _top =
+			    TOPN(
+			        10,
+			        FILTER(
+			            ALLSELECTED( 'bi vw_dim_produto'[descricao] ),
+			            [Custo Total das Compras] > 0
+			        ),
+			        [Custo Total das Compras], DESC
+			    )
+			RETURN
+			    IF(
+			        NOT ISBLANK( _produtoAtual ) && _produtoAtual IN _top,
+			        [Custo Total das Compras]
+			    )
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 02 - Compras
+		lineageTag: 3e1710bf-753b-4fa5-a22e-f3a44c182da8
+
+	/// Soma de quantidade dos eventos de movimentação (sempre positiva na fato), sem sinal. Use para volume movimentado por tipo; para entradas menos saídas use Saldo Líquido Movimentado. Unidade: peças.
+	measure 'Peças Movimentadas' =
+			
+			SUM( 'bi vw_fato_movimentacao_estoque'[quantidade] )
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 2ec03227-eeb4-48f3-99ae-72560bd01398
+
+	/// Quantidade de eventos (linhas) de movimentação de estoque. Unidade: eventos.
+	measure 'Eventos de Movimentação' =
+			
+			COUNTROWS( 'bi vw_fato_movimentacao_estoque' )
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 88d45375-ad80-46b8-b89c-953a9c533942
+
+	/// Peças dos tipos de movimentação com sinal +1 (implantação, entrada por compra, ajuste positivo e estorno de venda). O sinal vem exclusivamente de vw_dim_tipo_movimentacao. Unidade: peças.
+	measure 'Entradas de Estoque (Peças)' =
+			
+			CALCULATE(
+			    [Peças Movimentadas],
+			    KEEPFILTERS( 'bi vw_dim_tipo_movimentacao'[sinal] = 1 )
+			)
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 512f8401-7096-46da-aa2d-5a1cab37a91d
+
+	/// Peças dos tipos de movimentação com sinal -1 (venda, presente, perda, roubo, ajuste negativo e estorno de compra), em valor positivo. Saída não é sinônimo de venda. Unidade: peças.
+	measure 'Saídas de Estoque (Peças)' =
+			
+			CALCULATE(
+			    [Peças Movimentadas],
+			    KEEPFILTERS( 'bi vw_dim_tipo_movimentacao'[sinal] = -1 )
+			)
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 940e3eda-f2f9-420f-bed4-886165e026ae
+
+	/// Σ (quantidade × sinal do tipo de movimentação) no contexto filtrado: entradas positivas, saídas negativas. É variação, não saldo. Unidade: peças.
+	measure 'Saldo Líquido Movimentado' =
+			
+			SUMX(
+			    'bi vw_fato_movimentacao_estoque',
+			    'bi vw_fato_movimentacao_estoque'[quantidade]
+			        * RELATED( 'bi vw_dim_tipo_movimentacao'[sinal] )
+			)
+		formatString: #,0;-#,0;0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: c624881a-f34b-44b1-8b47-ac6ed10e5ca3
+
+	/// Peças recebidas por compra segundo os eventos de movimentação (tipo ENTRADA_COMPRA). Reconcilia com Quantidade Adquirida da fato de compras. Não inclui saldo inicial. Unidade: peças.
+	measure 'Entradas por Compra (Peças)' =
+			
+			CALCULATE(
+			    [Peças Movimentadas],
+			    KEEPFILTERS( 'bi vw_dim_tipo_movimentacao'[codigo_tipo] = "ENTRADA_COMPRA" )
+			)
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 42deee98-ddd8-4e42-9b2f-d889e46843cc
+
+	/// Peças saídas por venda segundo os eventos de movimentação (tipo SAIDA_VENDA), inclusive de vendas depois canceladas (o cancelamento gera ESTORNO_VENDA). Só existem para vendas registradas no sistema; as vendas da planilha não têm movimentação. Unidade: peças.
+	measure 'Saídas por Venda (Peças)' =
+			
+			CALCULATE(
+			    [Peças Movimentadas],
+			    KEEPFILTERS( 'bi vw_dim_tipo_movimentacao'[codigo_tipo] = "SAIDA_VENDA" )
+			)
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 87a75148-ee6c-480c-b18f-9b2f1c951447
+
+	/// Peças saídas como presente (tipo SAIDA_PRESENTE). Reduz estoque, mas não gera faturamento. Unidade: peças.
+	measure 'Saídas por Presente (Peças)' =
+			
+			CALCULATE(
+			    [Peças Movimentadas],
+			    KEEPFILTERS( 'bi vw_dim_tipo_movimentacao'[codigo_tipo] = "SAIDA_PRESENTE" )
+			)
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 9b5f0635-2e2c-4c3c-bd3e-923b0982f925
+
+	/// Peças acrescidas por ajuste positivo de inventário (tipo AJUSTE_POSITIVO). Não é compra nem receita. Unidade: peças.
+	measure 'Ajustes Positivos (Peças)' =
+			
+			CALCULATE(
+			    [Peças Movimentadas],
+			    KEEPFILTERS( 'bi vw_dim_tipo_movimentacao'[codigo_tipo] = "AJUSTE_POSITIVO" )
+			)
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 2c654d9c-9e6e-4659-a4f6-5fb9940448b8
+
+	/// Peças baixadas por ajuste negativo de inventário (tipo AJUSTE_NEGATIVO), em valor positivo. Não é venda. Unidade: peças.
+	measure 'Ajustes Negativos (Peças)' =
+			
+			CALCULATE(
+			    [Peças Movimentadas],
+			    KEEPFILTERS( 'bi vw_dim_tipo_movimentacao'[codigo_tipo] = "AJUSTE_NEGATIVO" )
+			)
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 4c5a6c14-95a8-47da-a4d4-0b99431b6094
+
+	/// Saldo reconstruído pela soma acumulada de todas as movimentações (com sinal) até a última data do filtro, ignorando o filtro de tipo de movimentação. Serve para reconciliar com Estoque Atual (Peças) dos snapshots. As movimentações começam na implantação feita pela importação da planilha. Unidade: peças.
+	measure 'Saldo Acumulado por Movimentações' =
+			
+			VAR _fim = MAX( 'bi vw_dim_data'[data] )
+			RETURN
+			    CALCULATE(
+			        [Saldo Líquido Movimentado],
+			        REMOVEFILTERS( 'bi vw_dim_data' ),
+			        'bi vw_dim_data'[data] <= _fim,
+			        REMOVEFILTERS( 'bi vw_dim_tipo_movimentacao' )
+			    )
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: f9b67e19-3d39-462a-be63-f3aac31819f2
+
+	/// Dias do calendário (vw_dim_data) dentro de alguma janela comercial (janela_comercial preenchida) no filtro atual. Unidade: dias.
+	measure 'Dias em Janelas Comerciais' =
+			
+			CALCULATE(
+			    COUNTROWS( 'bi vw_dim_data' ),
+			    KEEPFILTERS( NOT ISBLANK( 'bi vw_dim_data'[janela_comercial] ) )
+			)
+		formatString: #,0
+		displayFolder: 05 - Análises temporais
+		lineageTag: e2ff2e25-dbe1-480f-a789-8ffb78c39864
+
+	/// Receita Realizada somente em dias de janela comercial (Dia das Mães, Dia dos Namorados, Black Friday, Natal). As janelas são uma convenção de análise (vw_dim_data), não informação da empresa. Unidade: R$.
+	measure 'Receita em Janelas Comerciais' =
+			
+			CALCULATE(
+			    [Receita Realizada],
+			    KEEPFILTERS( NOT ISBLANK( 'bi vw_dim_data'[janela_comercial] ) )
+			)
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 05 - Análises temporais
+		lineageTag: 7ccaab27-868f-4320-8ce4-55b367eab458
+
+	/// Quantidade Vendida somente em dias de janela comercial. Unidade: peças.
+	measure 'Quantidade em Janelas Comerciais' =
+			
+			CALCULATE(
+			    [Quantidade Vendida],
+			    KEEPFILTERS( NOT ISBLANK( 'bi vw_dim_data'[janela_comercial] ) )
+			)
+		formatString: #,0
+		displayFolder: 05 - Análises temporais
+		lineageTag: 0d507f1e-fa02-4790-bff6-36dbbe3b301c
+
+	/// Receita em janelas comerciais ÷ dias do calendário em janelas comerciais. Normaliza pela duração para comparar com as demais datas. Inclui dias sem venda. Unidade: R$ por dia.
+	measure 'Receita Média Diária - Janelas Comerciais' =
+			
+			DIVIDE( [Receita em Janelas Comerciais], [Dias em Janelas Comerciais] )
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 05 - Análises temporais
+		lineageTag: 13cbf14e-7e99-42fa-8f41-04827fd9615d
+
+	/// Receita nos dias fora de qualquer janela comercial ÷ quantidade desses dias do calendário. Inclui dias sem venda. Unidade: R$ por dia.
+	measure 'Receita Média Diária - Demais Datas' =
+			
+			DIVIDE(
+			    CALCULATE( [Receita Realizada], KEEPFILTERS( ISBLANK( 'bi vw_dim_data'[janela_comercial] ) ) ),
+			    CALCULATE( COUNTROWS( 'bi vw_dim_data' ), KEEPFILTERS( ISBLANK( 'bi vw_dim_data'[janela_comercial] ) ) )
+			)
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 05 - Análises temporais
+		lineageTag: 0c9ae389-1ed0-4e8c-a306-20e162411a06
+
+	/// Variação percentual da receita média diária nas janelas comerciais em relação às demais datas, no mesmo filtro. Vazia quando um dos dois grupos não existe no contexto. Descritivo: não indica causa nem previsão.
+	measure 'Diferença da Média Diária - Janelas vs Demais' =
+			
+			VAR _janelas = [Receita Média Diária - Janelas Comerciais]
+			VAR _demais = [Receita Média Diária - Demais Datas]
+			RETURN
+			    IF(
+			        ISBLANK( _janelas ) || ISBLANK( _demais ),
+			        BLANK(),
+			        DIVIDE( _janelas, _demais ) - 1
+			    )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 05 - Análises temporais
+		lineageTag: 9b90b755-78f0-45e9-bf5f-828b986bfd0a
+
+	/// Suporte de uma única regra A→B de vw_associacao_produtos (vendas com A e B ÷ total de vendas). Só vendas registradas no sistema (RN-73). Retorna vazio se houver mais de uma regra no contexto: não soma nem média entre regras. Histórico completo; não responde aos filtros de data.
+	measure 'Suporte (Regra de Produtos)' =
+			
+			IF(
+			    COUNTROWS( 'bi vw_associacao_produtos' ) = 1,
+			    MAX( 'bi vw_associacao_produtos'[suporte] )
+			)
+		formatString: 0.000%
+		displayFolder: 05 - Análises temporais\Associações
+		lineageTag: 4437ed52-7611-4035-9b09-d9ac0458aeda
+
+	/// Confiança de uma única regra A→B (vendas com A e B ÷ vendas com A), só com vendas registradas no sistema. Vazio para mais de uma regra no contexto. Histórico completo.
+	measure 'Confiança (Regra de Produtos)' =
+			
+			IF(
+			    COUNTROWS( 'bi vw_associacao_produtos' ) = 1,
+			    MAX( 'bi vw_associacao_produtos'[confianca] )
+			)
+		formatString: 0.0%
+		displayFolder: 05 - Análises temporais\Associações
+		lineageTag: 20161923-667b-4159-a45b-ced17344d480
+
+	/// Lift de uma única regra A→B (confiança ÷ suporte de B); maior que 1 indica compra conjunta acima do acaso. Vazio para mais de uma regra. Regras com poucas vendas conjuntas têm lift instável.
+	measure 'Lift (Regra de Produtos)' =
+			
+			IF(
+			    COUNTROWS( 'bi vw_associacao_produtos' ) = 1,
+			    MAX( 'bi vw_associacao_produtos'[lift] )
+			)
+		formatString: 0.00
+		displayFolder: 05 - Análises temporais\Associações
+		lineageTag: 70a2550e-52c6-4ec8-9991-2fb2c8cf8552
+
+	/// Lift exibido somente para as 10 regras de produtos de maior lift entre as que têm pelo menos 5 vendas conjuntas (critério aprovado para evitar destacar coincidências de 1 ou 2 vendas). Cada par aparece nos dois sentidos (A→B e B→A). Histórico completo.
+	measure 'Lift - Top 10 Regras de Produtos' =
+			
+			VAR _ant = SELECTEDVALUE( 'bi vw_associacao_produtos'[codigo_antecedente] )
+			VAR _con = SELECTEDVALUE( 'bi vw_associacao_produtos'[codigo_consequente] )
+			VAR _top =
+			    TOPN(
+			        10,
+			        FILTER(
+			            ALLSELECTED( 'bi vw_associacao_produtos' ),
+			            'bi vw_associacao_produtos'[vendas_com_ambos] >= 5
+			        ),
+			        'bi vw_associacao_produtos'[lift], DESC
+			    )
+			RETURN
+			    IF(
+			        COUNTROWS( 'bi vw_associacao_produtos' ) = 1
+			            && NOT ISEMPTY(
+			                FILTER(
+			                    _top,
+			                    'bi vw_associacao_produtos'[codigo_antecedente] = _ant
+			                        && 'bi vw_associacao_produtos'[codigo_consequente] = _con
+			                )
+			            ),
+			        MAX( 'bi vw_associacao_produtos'[lift] )
+			    )
+		formatString: 0.00
+		displayFolder: 05 - Análises temporais\Associações
+		lineageTag: eeb4e97c-784a-487d-a208-c3825adbadb5
+
+	/// Suporte de uma única regra entre tipos de peça (vw_associacao_tipos), só com vendas registradas no sistema. Vazio para mais de uma regra no contexto. Histórico completo; não responde aos filtros de data.
+	measure 'Suporte (Regra de Tipos)' =
+			
+			IF(
+			    COUNTROWS( 'bi vw_associacao_tipos' ) = 1,
+			    MAX( 'bi vw_associacao_tipos'[suporte] )
+			)
+		formatString: 0.00%
+		displayFolder: 05 - Análises temporais\Associações
+		lineageTag: 11afbcda-2cbb-4e28-b5bd-0cda67d625fc
+
+	/// Confiança de uma única regra entre tipos de peça. Vazio para mais de uma regra no contexto.
+	measure 'Confiança (Regra de Tipos)' =
+			
+			IF(
+			    COUNTROWS( 'bi vw_associacao_tipos' ) = 1,
+			    MAX( 'bi vw_associacao_tipos'[confianca] )
+			)
+		formatString: 0.0%
+		displayFolder: 05 - Análises temporais\Associações
+		lineageTag: cade6b77-65b7-4dbc-923f-53826362bdbd
+
+	/// Lift de uma única regra entre tipos de peça; maior que 1 indica afinidade acima do acaso. Só vendas registradas no sistema; regras com poucas vendas conjuntas têm lift instável.
+	measure 'Lift (Regra de Tipos)' =
+			
+			IF(
+			    COUNTROWS( 'bi vw_associacao_tipos' ) = 1,
+			    MAX( 'bi vw_associacao_tipos'[lift] )
+			)
+		formatString: 0.00
+		displayFolder: 05 - Análises temporais\Associações
+		lineageTag: d578b965-6bec-4b25-91d4-58320ac7f6af
+
+	/// Data da última venda (de qualquer origem) do produto até a data de referência ([Data da Posição de Estoque]), ignorando o início do período filtrado: uma venda anterior ao período continua sendo a última venda. Vazia quando não há venda até a referência. Respeita os filtros de produto. Com vários produtos no contexto, é a venda mais recente entre eles.
+	measure 'Última Venda até a Referência' =
+			
+			VAR _ref = [Data da Posição de Estoque]
+			VAR _ultima =
+			    CALCULATE(
+			        MAX( 'bi vw_fato_venda_item'[data_hora_venda] ),
+			        REMOVEFILTERS( 'bi vw_dim_data' ),
+			        'bi vw_dim_data'[data] <= _ref
+			    )
+			RETURN
+			    IF(
+			        ISBLANK( _ref ) || ISBLANK( _ultima ),
+			        BLANK(),
+			        DATE( YEAR( _ultima ), MONTH( _ultima ), DAY( _ultima ) )
+			    )
+		formatString: dd/MM/yyyy
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: 109e8f5d-d462-4ce9-ae5f-969e0e14c1c6
+
+	/// Dias entre a data de referência ([Data da Posição de Estoque]) e a Última Venda até a Referência. Vazio quando o produto nunca foi vendido até a referência. No nível do produto/modelo: não indica há quanto tempo cada unidade está em estoque. Unidade: dias.
+	measure 'Dias sem Venda' =
+			
+			VAR _ref = [Data da Posição de Estoque]
+			VAR _ultima = [Última Venda até a Referência]
+			RETURN
+			    IF( ISBLANK( _ultima ), BLANK(), INT( _ref - _ultima ) )
+		formatString: #,0
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: 9229ca6e-0639-4802-9e49-f599772cfaff
+
+	/// Data do último evento de movimentação do produto até a data de referência, excluindo IMPLANTACAO (saldo inicial). Ignora o início do período filtrado e o filtro de tipo de movimentação. Vazia quando só há o saldo inicial.
+	measure 'Última Movimentação até a Referência' =
+			
+			VAR _ref = [Data da Posição de Estoque]
+			VAR _ultima =
+			    CALCULATE(
+			        MAX( 'bi vw_fato_movimentacao_estoque'[data_hora_evento] ),
+			        REMOVEFILTERS( 'bi vw_dim_data' ),
+			        'bi vw_dim_data'[data] <= _ref,
+			        REMOVEFILTERS( 'bi vw_dim_tipo_movimentacao' ),
+			        'bi vw_dim_tipo_movimentacao'[codigo_tipo] <> "IMPLANTACAO"
+			    )
+			RETURN
+			    IF(
+			        ISBLANK( _ref ) || ISBLANK( _ultima ),
+			        BLANK(),
+			        DATE( YEAR( _ultima ), MONTH( _ultima ), DAY( _ultima ) )
+			    )
+		formatString: dd/MM/yyyy
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: f9132c03-5e3d-4577-9cac-a9db3b6b472f
+
+	/// Dias entre a data de referência e a Última Movimentação até a Referência (sem IMPLANTACAO). Vazio quando o produto não teve movimentação após o saldo inicial. Ausência de movimentação é diferente de ausência de venda: compras, presentes e ajustes também são movimentações. Unidade: dias.
+	measure 'Dias sem Movimentação' =
+			
+			VAR _ref = [Data da Posição de Estoque]
+			VAR _ultima = [Última Movimentação até a Referência]
+			RETURN
+			    IF( ISBLANK( _ultima ), BLANK(), INT( _ref - _ultima ) )
+		formatString: #,0
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: f1995ab5-fbf8-468e-b730-85b35cd4c28d
+
+	/// Data da última entrada por compra do produto até a data de referência. Entrada = tipos de natureza 'entrada' na dimensão (ENTRADA_COMPRA). Não inclui IMPLANTACAO (saldo inicial) nem AJUSTE_POSITIVO. Vazia quando o produto nunca foi comprado após o saldo inicial.
+	measure 'Última Entrada por Compra' =
+			
+			VAR _ref = [Data da Posição de Estoque]
+			VAR _ultima =
+			    CALCULATE(
+			        MAX( 'bi vw_fato_movimentacao_estoque'[data_hora_evento] ),
+			        REMOVEFILTERS( 'bi vw_dim_data' ),
+			        'bi vw_dim_data'[data] <= _ref,
+			        REMOVEFILTERS( 'bi vw_dim_tipo_movimentacao' ),
+			        'bi vw_dim_tipo_movimentacao'[natureza] = "entrada"
+			    )
+			RETURN
+			    IF(
+			        ISBLANK( _ref ) || ISBLANK( _ultima ),
+			        BLANK(),
+			        DATE( YEAR( _ultima ), MONTH( _ultima ), DAY( _ultima ) )
+			    )
+		formatString: dd/MM/yyyy
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: 4ad03765-b7a7-4728-bbc3-556577c73c50
+
+	/// Situação do produto até a data de referência, em texto, para a tabela detalhada: nunca vendido sem movimentação após o saldo inicial; nunca vendido com movimentação (compras, presentes ou ajustes); ou já vendido. Não classifica por faixas de dias. Vazia fora do nível de um único produto.
+	measure 'Situação de Venda e Movimentação' =
+			
+			VAR _venda = [Última Venda até a Referência]
+			VAR _mov = [Última Movimentação até a Referência]
+			RETURN
+			    IF(
+			        NOT HASONEVALUE( 'bi vw_dim_produto'[produto_key] ) || ISBLANK( [Data da Posição de Estoque] ),
+			        BLANK(),
+			        IF(
+			            ISBLANK( _venda ),
+			            IF(
+			                ISBLANK( _mov ),
+			                "Nunca vendido · sem movimentação após o saldo inicial",
+			                "Nunca vendido · com movimentação registrada"
+			            ),
+			            "Já vendido · ver dias sem venda"
+			        )
+			    )
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: 83451099-0c7d-4e4f-b8c1-abf81f9ef4fa
+
+	/// Quantidade de produtos/modelos com saldo maior que zero na posição de estoque de referência ([Data da Posição de Estoque]). Respeita os filtros de Material e Tipo de peça. Unidade: produtos (não é quantidade de peças).
+	measure 'Produtos com Estoque' =
+			
+			VAR _ref = [Data da Posição de Estoque]
+			RETURN
+			    IF(
+			        ISBLANK( _ref ),
+			        BLANK(),
+			        COUNTROWS(
+			            FILTER(
+			                VALUES( 'bi vw_dim_produto'[produto_key] ),
+			                CALCULATE(
+			                    SUM( 'bi vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+			                    REMOVEFILTERS( 'bi vw_dim_data' ),
+			                    'bi vw_dim_data'[data] = _ref
+			                ) > 0
+			            )
+			        ) + 0
+			    )
+		formatString: #,0
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: 20ddda0b-1348-4a66-9365-6f5a13fc04e6
+
+	/// Produtos com saldo maior que zero na posição de referência e nenhuma venda registrada no histórico até essa data (não apenas no período filtrado). Unidade: produtos.
+	measure 'Produtos em Estoque sem Venda Registrada' =
+			
+			VAR _ref = [Data da Posição de Estoque]
+			RETURN
+			    IF(
+			        ISBLANK( _ref ),
+			        BLANK(),
+			        COUNTROWS(
+			            FILTER(
+			                VALUES( 'bi vw_dim_produto'[produto_key] ),
+			                CALCULATE(
+			                    SUM( 'bi vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+			                    REMOVEFILTERS( 'bi vw_dim_data' ),
+			                    'bi vw_dim_data'[data] = _ref
+			                ) > 0
+			                    && ISBLANK( [Última Venda até a Referência] )
+			            )
+			        ) + 0
+			    )
+		formatString: #,0
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: a3da1dfd-6c52-4c35-8d8a-13ffd5d65dfa
+
+	/// Produtos com saldo maior que zero na posição de referência e nenhum evento de movimentação além da IMPLANTACAO (saldo inicial) até essa data. Unidade: produtos.
+	measure 'Produtos em Estoque sem Movimentação após o Saldo Inicial' =
+			
+			VAR _ref = [Data da Posição de Estoque]
+			RETURN
+			    IF(
+			        ISBLANK( _ref ),
+			        BLANK(),
+			        COUNTROWS(
+			            FILTER(
+			                VALUES( 'bi vw_dim_produto'[produto_key] ),
+			                CALCULATE(
+			                    SUM( 'bi vw_fato_snapshot_estoque'[quantidade_em_estoque] ),
+			                    REMOVEFILTERS( 'bi vw_dim_data' ),
+			                    'bi vw_dim_data'[data] = _ref
+			                ) > 0
+			                    && ISBLANK( [Última Movimentação até a Referência] )
+			            )
+			        ) + 0
+			    )
+		formatString: #,0
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: 5e014538-4ab3-472a-8dc9-123e4e230c2b
+
+	/// Chave numérica da ordem de exibição da página de estoque sem venda e movimentação (auxiliar, oculta). Grupo 1 = nunca vendido e sem movimentação após o saldo inicial (mais unidades primeiro); grupo 2 = nunca vendido com movimentação (movimentação mais antiga primeiro); grupo 3 = já vendido (mais dias sem venda e, no empate, mais dias sem movimentação). Desempate final pela chave do produto (até 99.999). Não altera nenhum indicador.
+	measure '_Chave da Ordem de Exibição' =
+			
+			VAR _venda = [Última Venda até a Referência]
+			VAR _mov = [Última Movimentação até a Referência]
+			VAR _grupo = IF( ISBLANK( _venda ), IF( ISBLANK( _mov ), 1, 2 ), 3 )
+			VAR _criterio1 =
+			    SWITCH(
+			        _grupo,
+			        1, [Estoque Atual (Peças)],
+			        2, [Dias sem Movimentação],
+			        [Dias sem Venda]
+			    )
+			VAR _criterio2 = IF( _grupo = 3, [Dias sem Movimentação], 0 )
+			RETURN
+			    IF(
+			        HASONEVALUE( 'bi vw_dim_produto'[produto_key] ) && NOT ISBLANK( [Data da Posição de Estoque] ),
+			        _grupo * 1000000000000000
+			            + ( 100000 - COALESCE( _criterio1, 0 ) ) * 10000000000
+			            + ( 100000 - COALESCE( _criterio2, 0 ) ) * 100000
+			            + MAX( 'bi vw_dim_produto'[produto_key] )
+			    )
+		formatString: 0
+		isHidden
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: fc49cb58-874e-4f2b-8f04-4db9886b82e5
+
+	/// Posição do produto na lista da página de estoque sem venda e movimentação (1 = primeiro): nunca vendidos sem movimentação, depois nunca vendidos com movimentação, depois já vendidos por dias sem venda decrescentes. Considera somente produtos com estoque maior que zero dentro dos filtros aplicados (slicers e filtros do visual). Só para ordenar a exibição; não é indicador nem faixa de classificação.
+	measure 'Ordem de Exibição' =
+			
+			VAR _chave = [_Chave da Ordem de Exibição]
+			RETURN
+			    IF(
+			        ISBLANK( _chave ) || NOT ( [Estoque Atual (Peças)] > 0 ),
+			        BLANK(),
+			        CALCULATE(
+			            RANKX(
+			                FILTER( VALUES( 'bi vw_dim_produto'[produto_key] ), [Estoque Atual (Peças)] > 0 ),
+			                [_Chave da Ordem de Exibição],
+			                _chave,
+			                ASC,
+			                DENSE
+			            ),
+			            ALLSELECTED( 'bi vw_dim_produto' )
+			        )
+			    )
+		formatString: 0
+		displayFolder: 06 - Estoque sem Venda e Movimentação
+		lineageTag: e2c113ad-8088-4269-9c7e-b2526199df12
+
+	/// Receita Realizada somente das vendas registradas no sistema (origem APLICACAO, com número de venda). Unidade: R$.
+	measure 'Receita Realizada - Aplicação' =
+			
+			CALCULATE( [Receita Realizada], KEEPFILTERS( 'bi vw_fato_venda_item'[origem_dado] = "APLICACAO" ) )
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 01 - Vendas
+		lineageTag: 393ea77e-ff2a-5e8c-8123-9773af034d2f
+
+		annotation PBI_FormatHint = {"currencyCulture":"pt-BR"}
+
+	/// Receita Realizada somente das vendas históricas importadas da planilha (origem PLANILHA, sem número de venda), sem valor simbólico nem vendas sem valor. Unidade: R$.
+	measure 'Receita Realizada - Planilha' =
+			
+			CALCULATE( [Receita Realizada], KEEPFILTERS( 'bi vw_fato_venda_item'[origem_dado] = "PLANILHA" ) )
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 01 - Vendas
+		lineageTag: 3214d207-3101-5e26-9a60-68835fcf6578
+
+		annotation PBI_FormatHint = {"currencyCulture":"pt-BR"}
+
+	/// Peças vendidas nas vendas registradas no sistema (origem APLICACAO). Unidade: peças.
+	measure 'Quantidade Vendida - Aplicação' =
+			
+			CALCULATE( [Quantidade Vendida], KEEPFILTERS( 'bi vw_fato_venda_item'[origem_dado] = "APLICACAO" ) )
+		formatString: #,0
+		displayFolder: 01 - Vendas
+		lineageTag: a5ee975a-6f6c-5fe9-a97a-2ff54d23ff14
+
+	/// Peças vendidas segundo o histórico importado da planilha (origem PLANILHA). Unidade: peças.
+	measure 'Quantidade Vendida - Planilha' =
+			
+			CALCULATE( [Quantidade Vendida], KEEPFILTERS( 'bi vw_fato_venda_item'[origem_dado] = "PLANILHA" ) )
+		formatString: #,0
+		displayFolder: 01 - Vendas
+		lineageTag: fd10e84d-150d-5dab-9b79-4cffe59a7258
+
+	/// Peças vendidas que não entram na receita: vendas históricas da planilha com valor simbólico (R$ 0,01) ou sem valor informado. Unidade: peças.
+	measure 'Vendas fora do Faturamento (Peças)' =
+			
+			CALCULATE( [Quantidade Vendida], KEEPFILTERS( 'bi vw_fato_venda_item'[entra_faturamento] = FALSE() ) )
+		formatString: #,0
+		displayFolder: 01 - Vendas
+		lineageTag: ccbc2576-5654-500d-bf50-baaa6b5f9f17
+
+	/// Peças baixadas como perda (tipo SAIDA_PERDA). Reduz estoque, mas não gera faturamento. Unidade: peças.
+	measure 'Saídas por Perda (Peças)' =
+			
+			CALCULATE(
+			    [Peças Movimentadas],
+			    KEEPFILTERS( 'bi vw_dim_tipo_movimentacao'[codigo_tipo] = "SAIDA_PERDA" )
+			)
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: dab129b1-b644-5347-81ff-c199bf9daf8b
+
+	/// Peças devolvidas ao estoque pelo cancelamento de vendas no sistema (tipo ESTORNO_VENDA). Unidade: peças.
+	measure 'Estornos de Venda (Peças)' =
+			
+			CALCULATE(
+			    [Peças Movimentadas],
+			    KEEPFILTERS( 'bi vw_dim_tipo_movimentacao'[codigo_tipo] = "ESTORNO_VENDA" )
+			)
+		formatString: #,0
+		displayFolder: 03 - Estoque\Movimentações
+		lineageTag: 43415daa-c884-54ab-b68a-fea92015bcf4
+
+	/// Preço do ouro registrado pelo cliente (R$ por grama de ouro 1000, hipótese Q6) vigente na última data do filtro: o registro com a maior data de vigência menor ou igual a ela (RN-67). Vazio sem registro. Unidade: R$/g.
+	measure 'Preço do Ouro Vigente' =
+			
+			VAR _fim = MAX( 'bi vw_dim_data'[data] )
+			VAR _vigencia =
+			    CALCULATE(
+			        MAX( 'bi vw_preco_ouro'[data_referencia] ),
+			        REMOVEFILTERS( 'bi vw_dim_data' ),
+			        'bi vw_preco_ouro'[data_referencia] <= _fim
+			    )
+			RETURN
+			    IF(
+			        NOT ISBLANK( _vigencia ),
+			        CALCULATE(
+			            MAX( 'bi vw_preco_ouro'[preco_ouro_1000] ),
+			            REMOVEFILTERS( 'bi vw_dim_data' ),
+			            'bi vw_preco_ouro'[data_referencia] = _vigencia
+			        )
+			    )
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		displayFolder: 04 - Precificação
+		lineageTag: 354a537a-a5f5-5de8-aa28-9a48e30e8557
+
+		annotation PBI_FormatHint = {"currencyCulture":"pt-BR"}
+
+	column Value
+		isHidden
+		formatString: 0
+		lineageTag: 39d303f0-0b4c-44cb-9f20-fd48972f758e
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Value]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Medidas = calculated
+		mode: import
+		source = { BLANK() }
+
+	annotation PBI_Id = 4dbafb0930e34a5fbb8caccce4666a34
+

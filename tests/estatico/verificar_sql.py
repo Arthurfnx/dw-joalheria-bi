@@ -1,6 +1,7 @@
 """
-verificar_sql.py — validação ESTÁTICA dos arquivos SQL do ambiente demonstrativo,
-sem conexão com o banco e sem dependências externas (somente biblioteca padrão).
+verificar_sql.py — validação ESTÁTICA dos arquivos SQL do ambiente demonstrativo
+(fase 1) e do DW real (T04), sem conexão com o banco e sem dependências externas
+(somente biblioteca padrão).
 
 Não substitui a execução real no PostgreSQL. Detecta:
   1. aspas simples, aspas duplas, comentários de bloco e dollar-quotes não fechados;
@@ -14,6 +15,10 @@ Não substitui a execução real no PostgreSQL. Detecta:
   9. restrição proibida "realizado <= marcado" e colunas de cliente;
  10. subconsulta nos argumentos de CALL (o PostgreSQL rejeita em tempo de
      execução: "não é possível usar subconsulta no argumento do CALL").
+
+Arquivos do DW real (PASTAS_REAIS): a regra 8 se inverte — podem referenciar
+os esquemas reais (desde que o objeto exista no projeto) e NÃO podem
+referenciar os esquemas *_demo, que a fase 2 não altera.
 
 Antes da análise, a regra 10 passa por um autoteste com casos positivos e
 negativos; se o autoteste falhar, o verificador termina com código 1.
@@ -29,6 +34,10 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 PASTAS = [RAIZ / "db" / "migrations", RAIZ / "etl" / "sql" / "demo", RAIZ / "db" / "views", RAIZ / "tests" / "sql"]
+# DW real (fase 2, T04): esquemas staging, dw, bi e audit.
+PASTAS_REAIS = [RAIZ / "db" / "migrations" / "real", RAIZ / "etl" / "sql" / "app", RAIZ / "db" / "views" / "real",
+                RAIZ / "tests" / "dw_real"]
+ARQUIVOS_REAIS = [RAIZ / "db" / "seguranca" / "bi_leitura_real.sql"]
 SCHEMAS_DEMO = ("config_demo", "staging_demo", "dw_demo", "bi_demo", "audit_demo")
 SCHEMAS_REAIS = ("staging", "dw", "bi", "audit")
 
@@ -283,6 +292,8 @@ def main() -> int:
     print(f"Autoteste da regra de subconsulta em CALL: {AUTOTESTE_POSITIVOS} positivos detectados, "
           f"{AUTOTESTE_NEGATIVOS} negativos aceitos.")
     arquivos = [a for pasta in PASTAS for a in sorted(pasta.glob("*.sql"))]
+    reais = {a for pasta in PASTAS_REAIS for a in sorted(pasta.glob("*.sql"))} | set(ARQUIVOS_REAIS)
+    arquivos += sorted(reais)
     if not arquivos:
         print("Nenhum arquivo SQL encontrado.")
         return 1
@@ -311,12 +322,20 @@ def main() -> int:
 
     for arq, cod in codigos.items():
         baixo = cod.lower()
-        for m in ref.finditer(baixo):
-            nome = f"{m.group(1)}.{m.group(2)}"
-            if nome not in todos:
-                problema(arq, f"referência a objeto inexistente: {nome}")
-        for m in ref_real.finditer(baixo):
-            problema(arq, f"referência a schema do ambiente real: {m.group(0)}")
+        if arq in reais:
+            for m in ref.finditer(baixo):
+                problema(arq, f"arquivo do DW real referencia esquema da fase 1: {m.group(0)}")
+            for m in ref_real.finditer(baixo):
+                nome = f"{m.group(1)}.{m.group(2)}"
+                if nome not in todos:
+                    problema(arq, f"referência a objeto inexistente: {nome}")
+        else:
+            for m in ref.finditer(baixo):
+                nome = f"{m.group(1)}.{m.group(2)}"
+                if nome not in todos:
+                    problema(arq, f"referência a objeto inexistente: {nome}")
+            for m in ref_real.finditer(baixo):
+                problema(arq, f"referência a schema do ambiente real: {m.group(0)}")
         for m in call.finditer(baixo):
             nome = m.group(1)
             if nome not in procedures:
