@@ -1,0 +1,42 @@
+{
+  "name": "nobreza-joias-web",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0 <23"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:migrar": "tsx scripts/db-migrar.ts",
+    "usuario:criar-admin": "tsx scripts/criar-admin.ts",
+    "importar:planilhas": "tsx scripts/importar-planilhas.ts"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
+    "exceljs": "^4.4.0",
+    "kysely": "^0.29.8",
+    "next": "^16.4.6",
+    "pg": "^8.23.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.6",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

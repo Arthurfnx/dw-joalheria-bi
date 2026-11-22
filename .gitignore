@@ -55,3 +55,11 @@ Thumbs.db
 
 # Memória e instruções pessoais do Claude Code
 /CLAUDE.md
+
+# Aplicação web: pastas e arquivos gerados
+web/node_modules/
+web/.next/
+web/out/
+web/coverage/
+web/*.tsbuildinfo
+web/next-env.d.ts

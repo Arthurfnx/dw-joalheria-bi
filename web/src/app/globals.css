@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/* Tokens no estilo shadcn/ui: cores nomeadas pelo papel, não pelo tom. */
+@theme {
+  --color-fundo: #f7f6f3;
+  --color-superficie: #ffffff;
+  --color-texto: #1c1917;
+  --color-texto-suave: #57534e;
+  --color-borda: #e7e5e4;
+  --color-primaria: #7c5a10;
+  --color-primaria-escura: #5f450c;
+  --color-primaria-texto: #ffffff;
+  --color-perigo: #b91c1c;
+  --color-perigo-fundo: #fef2f2;
+  --color-sucesso: #15803d;
+  --color-sucesso-fundo: #f0fdf4;
+  --color-aviso: #92400e;
+  --color-aviso-fundo: #fffbeb;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+html {
+  /* Evita que o navegador do celular aumente o texto ao girar a tela. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-fundo);
+  color: var(--color-texto);
+  font-family: var(--font-sans);
+  min-width: 360px;
+}
