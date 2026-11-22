@@ -1,4 +1,4 @@
-// T02 — critérios 4, 5, 6 e 8: importação com planilhas de teste geradas aqui.
+// Importação com planilhas de teste geradas aqui.
 // Todas as linhas são inventadas; a planilha real nunca entra nos testes.
 
 import ExcelJS from "exceljs";

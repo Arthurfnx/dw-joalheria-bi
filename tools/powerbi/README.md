@@ -75,7 +75,7 @@ foram criadas pelo Power BI Modeling MCP; as 11 da página 7 (pasta "06 - Estoqu
 foram acrescentadas ao `Medidas.tmdl` de uma cópia de trabalho e depois integradas ao PBIP. Os geradores não
 criam medidas.
 
-## Relatório real (`criar_relatorio_real.js`, T04 — 2026-11-22)
+## Relatório real (`criar_relatorio_real.js`)
 
 `criar_relatorio_real.js` cria a cópia `powerbi/relatorio_joalheria.*` (ligada ao esquema `bi` do DW
 real) a partir do relatório demonstrativo, **sem alterar o demonstrativo**. Faz só a parte mecânica:

@@ -61,7 +61,7 @@ Alterações feitas nas cópias:
 
 Todos foram executados com sucesso a partir do repositório em 2026-11-01.
 
-## Relatório real (`powerbi/relatorio_joalheria.pbip`, esquema `bi`) — T04
+## Relatório real (`powerbi/relatorio_joalheria.pbip`, esquema `bi`)
 
 `conferir_relatorio_real.ps1` recalcula no SQL, somente leitura, os indicadores das páginas do relatório
 real sobre o esquema `bi` (período completo, sem filtros), com as mesmas regras das medidas DAX:

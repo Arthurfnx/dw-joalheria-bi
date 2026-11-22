@@ -1,6 +1,6 @@
 """
 verificar_sql.py — validação ESTÁTICA dos arquivos SQL do ambiente demonstrativo
-(fase 1) e do DW real (T04), sem conexão com o banco e sem dependências externas
+(fase 1) e do DW real, sem conexão com o banco e sem dependências externas
 (somente biblioteca padrão).
 
 Não substitui a execução real no PostgreSQL. Detecta:
@@ -34,7 +34,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 PASTAS = [RAIZ / "db" / "migrations", RAIZ / "etl" / "sql" / "demo", RAIZ / "db" / "views", RAIZ / "tests" / "sql"]
-# DW real (fase 2, T04): esquemas staging, dw, bi e audit.
+# DW real: esquemas staging, dw, bi e audit.
 PASTAS_REAIS = [RAIZ / "db" / "migrations" / "real", RAIZ / "etl" / "sql" / "app", RAIZ / "db" / "views" / "real",
                 RAIZ / "tests" / "dw_real"]
 ARQUIVOS_REAIS = [RAIZ / "db" / "seguranca" / "bi_leitura_real.sql"]

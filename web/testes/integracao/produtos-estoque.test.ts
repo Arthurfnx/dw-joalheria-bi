@@ -1,4 +1,4 @@
-// T02 — critérios 2, 3, 7, 10 (servidor), 11 e 12: invariantes de estoque,
+// Invariantes de estoque,
 // concorrência, papel de leitura do DW, tamanho só em anéis e preço do ouro.
 // Dados de teste inventados pelo próprio teste.
 
@@ -254,7 +254,7 @@ describe("Produtos", () => {
     expect((await buscarProdutos(bd, vendedor, { q: "%" })).produtos).toHaveLength(0);
   });
 
-  it("critério 10: o vendedor não vê valor de aquisição, custo nem consignado_com", async () => {
+  it("o vendedor não vê valor de aquisição, custo nem consignado_com", async () => {
     const id = await novoProduto(
       { valorAquisicao: "99.90", dataAquisicao: "2026-01-02", localEstoque: "Consignado", consignadoCom: "Pessoa de Teste" },
       1,

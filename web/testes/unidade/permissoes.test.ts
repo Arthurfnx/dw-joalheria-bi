@@ -22,7 +22,7 @@ function ator(perfil: Ator["perfil"], deveTrocarSenha = false): Ator {
 }
 
 describe("Matriz de permissões (especificação, seção 2)", () => {
-  it("administrador tem todas as permissões da T01", () => {
+  it("administrador tem todas as permissões", () => {
     for (const p of PERMISSOES) expect(temPermissao("ADMINISTRADOR", p)).toBe(true);
   });
 

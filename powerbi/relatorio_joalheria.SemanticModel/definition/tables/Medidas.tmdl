@@ -942,7 +942,7 @@ table Medidas
 		displayFolder: 03 - Estoque\Movimentações
 		lineageTag: 43415daa-c884-54ab-b68a-fea92015bcf4
 
-	/// Preço do ouro registrado pelo cliente (R$ por grama de ouro 1000, hipótese Q6) vigente na última data do filtro: o registro com a maior data de vigência menor ou igual a ela (RN-67). Vazio sem registro. Unidade: R$/g.
+	/// Preço do ouro registrado pelo cliente (R$ por grama de ouro 1000, a confirmar) vigente na última data do filtro: o registro com a maior data de vigência menor ou igual a ela (RN-67). Vazio sem registro. Unidade: R$/g.
 	measure 'Preço do Ouro Vigente' =
 			
 			VAR _fim = MAX( 'bi vw_dim_data'[data] )

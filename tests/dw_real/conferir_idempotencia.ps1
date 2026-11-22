@@ -1,5 +1,5 @@
 ﻿# =============================================================================
-# conferir_idempotencia.ps1 — critério 3 da T04: run_etl_app.ps1 executado duas
+# conferir_idempotencia.ps1 — run_etl_app.ps1 executado duas
 # vezes seguidas produz o mesmo DW (linhas e md5 de cada tabela de dw e view
 # de bi) e registra as duas execuções em audit.
 # Executa o ETL duas vezes (recarga completa autorizada de staging, dw e bi);

@@ -75,7 +75,7 @@ Hoje, trocar de servidor, banco ou esquema exige editar as 12 consultas. Uma mel
 | Estoque | Posições mensais 2024–2025 | Posições diárias **a partir da importação da planilha**; nenhuma posição anterior |
 | Tipos de movimentação | `SALDO_INICIAL` … | Códigos da aplicação: `IMPLANTACAO`, `SAIDA_PERDA`, `ESTORNO_VENDA`, `ESTORNO_COMPRA` etc. |
 | Associação | IDs sintéticos | Só vendas do sistema; tabelas vazias até haver vendas com mais de uma peça |
-| Preço do ouro | Série sintética | Registros do cliente na aplicação (R$/g de ouro 1000, hipótese Q6); `Preço do Ouro Vigente` e `preco_sugerido_atual` (RN-68, função `app.preco_sugerido`) |
+| Preço do ouro | Série sintética | Registros do cliente na aplicação (R$/g de ouro 1000, a confirmar); `Preço do Ouro Vigente` e `preco_sugerido_atual` (RN-68, função `app.preco_sugerido`) |
 | Datas comerciais | Efeitos simulados | Só a convenção de janelas (calendário), sem efeito esperado |
 
 Medidas novas: `Receita Realizada - Aplicação`, `Receita Realizada - Planilha`, `Quantidade Vendida - Aplicação`, `Quantidade Vendida - Planilha`, `Vendas fora do Faturamento (Peças)`, `Saídas por Perda (Peças)`, `Estornos de Venda (Peças)`, `Preço do Ouro Vigente` (69 medidas no total).

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * criar_relatorio_real.js — cria a CÓPIA do relatório para o DW real (T04).
+ * criar_relatorio_real.js — cria a CÓPIA do relatório para o DW real.
  *
  *   powerbi/relatorio_joalheria_demo.*  (lido, nunca alterado)
  *     -> powerbi/relatorio_joalheria.pbip

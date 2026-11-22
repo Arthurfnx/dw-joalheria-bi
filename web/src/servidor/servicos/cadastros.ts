@@ -237,8 +237,8 @@ export async function listarCadastros(
 
 /**
  * RN-11: opções para novos cadastros, só com itens ativos. Uma subcategoria
- * de categoria inativa também fica de fora. Usada pelos formulários desta
- * tarefa e pelo cadastro de produto (T02).
+ * de categoria inativa também fica de fora. Usada pelos formulários de
+ * cadastros e pelo cadastro de produto.
  */
 export async function listarOpcoesDeCadastro(
   bd: Bd,

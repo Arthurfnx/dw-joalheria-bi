@@ -1,4 +1,4 @@
-// T03 — critérios 2 a 8 e 10: confirmação e cancelamento de venda, contra o
+// Confirmação e cancelamento de venda, contra o
 // banco de teste, com a aplicação conectada como nobreza_aplicacao.
 // Dados de teste inventados pelo próprio teste.
 
@@ -104,7 +104,7 @@ describe("Confirmação (RN-40 a RN-44)", () => {
     await semDivergencia();
   });
 
-  it("critério 2 (RN-42, I4): um item sem saldo não grava nada e a mensagem identifica o produto", async () => {
+  it("RN-42, I4: um item sem saldo não grava nada e a mensagem identifica o produto", async () => {
     const comSaldo = await novoProduto();
     const semSaldo = await novoProduto({}, 0);
     const antes = { vendas: await contar("venda"), itens: await contar("venda_item"), movs: await contar("movimentacao_estoque") };
@@ -117,7 +117,7 @@ describe("Confirmação (RN-40 a RN-44)", () => {
     await semDivergencia();
   });
 
-  it("critério 3 (RN-43, I9): a mesma chave, em sequência ou simultânea, gera uma venda e uma saída por item", async () => {
+  it("RN-43, I9: a mesma chave, em sequência ou simultânea, gera uma venda e uma saída por item", async () => {
     const p = await novoProduto({ modoControle: "QUANTIDADE" }, 10);
     const entrada = { chave: randomUUID(), dataVenda: hoje(), observacao: null, itens: [{ produtoId: p.id, quantidade: 2, precoPraticado: "7.50" }] };
     const resultados = await Promise.all([confirmarVenda(bd, vendedor, entrada), confirmarVenda(bd, vendedor, entrada)]);
@@ -131,7 +131,7 @@ describe("Confirmação (RN-40 a RN-44)", () => {
     await semDivergencia();
   });
 
-  it("critério 4 (RN-31): duas vendas simultâneas da última unidade: uma confirmada e uma recusada", async () => {
+  it("RN-31: duas vendas simultâneas da última unidade: uma confirmada e uma recusada", async () => {
     const p = await novoProduto();
     const resultados = await Promise.allSettled([venda(vendedor, [{ produtoId: p.id }]), venda(admin, [{ produtoId: p.id }])]);
     expect(resultados.filter((r) => r.status === "fulfilled")).toHaveLength(1);
@@ -141,7 +141,7 @@ describe("Confirmação (RN-40 a RN-44)", () => {
     await semDivergencia();
   });
 
-  it("critério 5 (RN-44, I10): data futura recusada; data anterior aceita", async () => {
+  it("RN-44, I10: data futura recusada; data anterior aceita", async () => {
     const p = await novoProduto({ modoControle: "QUANTIDADE" }, 3);
     await expect(venda(admin, [{ produtoId: p.id }], { dataVenda: "2999-01-01" })).rejects.toThrow(/futura/);
     const v = await venda(admin, [{ produtoId: p.id }], { dataVenda: "2025-06-15" });
@@ -151,7 +151,7 @@ describe("Confirmação (RN-40 a RN-44)", () => {
     expect(mov.data_ocorrencia).toBe("2025-06-15");
   });
 
-  it("critério 7 (I8): valor do item = quantidade × preço praticado; total = soma dos itens, no banco", async () => {
+  it("I8: valor do item = quantidade × preço praticado; total = soma dos itens, no banco", async () => {
     const a = await novoProduto({ modoControle: "QUANTIDADE" }, 5);
     const b = await novoProduto();
     const v = await venda(admin, [{ produtoId: a.id, quantidade: 3, precoPraticado: "33,33" }, { produtoId: b.id, precoPraticado: "0.01" }]);

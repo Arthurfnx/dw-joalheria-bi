@@ -1,106 +1,118 @@
-# Data Warehouse e Business Intelligence — Joalheria
+# Nobreza Jóias — Data Warehouse, Business Intelligence e aplicação web
 
-Projeto acadêmico de Sistemas de Informação (extensão, Eixo 4): solução de Business Intelligence com **PostgreSQL**, **Data Warehouse dimensional**, **ETL** e **Power BI** para apoiar a gestão de estoque e vendas de uma joalheria.
+Projeto acadêmico de Sistemas de Informação (extensão, Eixo 4) para uma joalheria real, a Nobreza Jóias. Reúne três partes:
 
-> **Fase atual: ambiente demonstrativo com DADOS SINTÉTICOS.**
-> Nenhum número produzido nesta fase representa resultados reais da empresa.
+1. **Aplicação web** de produtos, estoque e vendas, que passa a ser a fonte oficial dos dados operacionais.
+2. **Data Warehouse dimensional** em PostgreSQL, alimentado por ETL a partir da aplicação.
+3. **Relatório Power BI** sobre o DW, exibido também dentro da aplicação.
 
-## Objetivo
+Há ainda um **ambiente demonstrativo** com dados sintéticos, usado na primeira entrega para validar o modelo dimensional e o relatório antes de existirem dados reais. Ele é mantido separado e não se mistura com os dados reais.
 
-Demonstrar a viabilidade técnica e acadêmica de um DW integrado (compras, vendas, movimentações e saldos de estoque) consumido pelo Power BI. A demonstração cobre:
-
-- saldo atual;
-- estoque por material e tipo de peça;
-- entradas e saídas;
-- produtos mais e menos vendidos;
-- comparação entre períodos;
-- produtos sem movimentação;
-- evolução do estoque;
-- preço sugerido × marcado × realizado;
-- datas comerciais;
-- associação entre produtos de uma mesma venda (somente com identificadores sintéticos).
-
-**Fora do escopo:** sistema web transacional, pagamentos, financeiro, fornecedores, logística, frete, e-commerce, clientes, previsão de demanda, margem bruta, estoque valorizado e giro por custo.
-
-## Fases
-
-| Fase | Dados | Esquemas | Situação |
-|---|---|---|---|
-| 1 — Demonstrativa | Sintéticos, determinísticos, `SINTETICO_DEMO` | `config_demo`, `staging_demo`, `dw_demo`, `bi_demo`, `audit_demo` | **Concluída** (2026-11-01): banco criado, ETL executado e testado, relatório Power BI com 6 páginas conferido contra o SQL |
-| 2 — Integração real | Planilhas CLS (ouro), RAMON (prata), FOLHEADOS | esquemas reais próprios (não criados) | Futura; depende das respostas em `docs/pending_questions.md` |
-
-Os dados reais e sintéticos **nunca** são misturados.
-
-## Arquitetura (fase 1)
+## Arquitetura
 
 ```
-config_demo ─► gerador PL/pgSQL determinístico ─► staging_demo ─► validação ─► dw_demo (estrela) ─► bi_demo (views) ─► Power BI (Import)
-                                                       audit_demo: execuções, contagens, rejeições, validações
+Planilhas da joalheria ──(importação única)──┐
+                                             ▼
+Navegador ──► Aplicação web (Next.js) ──► nobreza_app (PostgreSQL, banco operacional)
+                                             │  ETL (papel somente leitura, sem nomes de pessoas)
+                                             ▼
+                              dw_joalheria: staging ─► dw (estrela) ─► bi (views) ─► Power BI
+                                            audit: execuções, contagens, rejeições e verificações
+
+Ambiente demonstrativo (separado): config_demo ─► staging_demo ─► dw_demo ─► bi_demo ─► relatório demonstrativo
 ```
 
-Detalhes em `docs/architecture.md`, `docs/demo_data_specification.md` e `docs/data_dictionary.md`.
+## Componentes
 
-## Estado atual (fase 1)
+| Componente | Onde | Descrição |
+|---|---|---|
+| Aplicação web | `web/` | Next.js, React e TypeScript. Login com perfis Administrador e Vendedor, cadastro de produtos (inclusive peças de ouro com índice de preço e tamanho em anéis e alianças), estoque com saídas não comerciais, ajustes e consignação, vendas com baixa automática e cancelamento com estorno, preço do ouro com preço sugerido, importação das planilhas, auditoria e tela de relatórios |
+| Banco operacional | `nobreza_app` | Regras de estoque garantidas no próprio banco: funções PL/pgSQL são o único caminho de escrita em vendas, movimentações e saldos; movimentações imutáveis; saldo nunca negativo |
+| DW real | esquemas `staging`, `dw`, `bi`, `audit` de `dw_joalheria` | Dimensões de produto, data e tipo de movimentação; fatos de venda, compra, movimentação e snapshot diário de estoque; 12 views de consumo |
+| Relatório real | `powerbi/relatorio_joalheria.pbip` | Modo Import, sobre o esquema `bi` |
+| Ambiente demonstrativo | esquemas `*_demo` e `powerbi/relatorio_joalheria_demo.pbip` | 150 produtos sintéticos, 2024–2025, gerados de forma determinística; 7 páginas e 61 medidas |
 
-| Componente | Estado |
-|---|---|
-| Banco | `dw_joalheria` no PostgreSQL 18.6 local; 5 esquemas `*_demo`; 21 arquivos de migration aplicados; esquemas reais inexistentes |
-| Dados | 100% sintéticos: 150 produtos, 01/01/2024 a 31/12/2025, 6.370 itens vendidos, 1.789 itens comprados, 8.377 movimentações, 3.600 posições de estoque; estoque final de 520 peças |
-| ETL | 3 execuções registradas: a 1ª falhou (erro de sintaxe num `CALL`, corrigido); a 2ª e a 3ª terminaram com SUCESSO, 24/24 verificações aprovadas e 0 rejeições; a 3ª confirmou idempotência e determinismo |
-| Consumo | 12 views em `bi_demo`; perfil `bi_leitura` somente leitura (`db/seguranca/bi_leitura.sql`, aplicado à parte) |
-| Power BI | PBIP `powerbi/relatorio_joalheria_demo.pbip`, modo Import, 12 views, 50 medidas, 10 relacionamentos, 6 páginas aprovadas pelo usuário |
-| Conferência | Indicadores das 6 páginas conferidos contra o PostgreSQL (`tests/reconciliacao/`, `powerbi/validation_checklist.md`) |
+## Regras de negócio que o modelo respeita
 
-## Ambiente
+- Saídas não comerciais (presente, perda, roubo) reduzem o estoque, mas não são venda.
+- Ticket médio e associação entre produtos só usam vendas registradas na aplicação, que têm número de venda. As vendas históricas importadas das planilhas não têm identificador de transação e ficam fora desses cálculos.
+- Preços são unitários; quantidades e peso nunca são somados entre si.
+- Margem bruta, custo das mercadorias vendidas e giro por custo não são calculados enquanto não houver política de valorização de estoque.
+- Nomes de clientes nunca são importados; o nome de quem está com uma peça consignada fica só na aplicação e nunca chega ao DW nem ao relatório.
 
-- Windows 11 Pro, Git, Python 3.14.10.
-- PostgreSQL 18.6 local (serviço `postgresql-x64-18`).
-- Power BI Desktop instalado pelo usuário.
-- Node.js (somente para as ferramentas opcionais de `tools/powerbi/`).
+## Requisitos
+
+- Windows, PostgreSQL 18 local (serviço `postgresql-x64-18`), Node.js 22, Python 3 (só para o verificador estático de SQL) e Power BI Desktop.
 - Docker não é usado.
-- Configuração local: copie `.env.example` para `.env` e preencha as credenciais. Use `PG_BIN` se o `psql` não estiver no PATH.
+- Se o `psql` não estiver no PATH, defina `PG_BIN` (por exemplo, `C:\Program Files\PostgreSQL\18\bin`).
+- Copie `.env.example` para `.env` e `web/.env.example` para `web/.env`, e preencha localmente. Nenhum dos dois `.env` é versionado.
+
+## Execução
+
+**Aplicação web:** passo a passo em [`web/README.md`](web/README.md) (bancos e papéis, migrations, primeiro administrador, importação das planilhas, execução e testes).
+
+**DW real e relatório:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run_migrations_real.ps1   # estrutura do DW real
+powershell -ExecutionPolicy Bypass -File scripts\run_etl_app.ps1           # carga a partir da aplicação (recarga completa)
+```
+
+Detalhes em [`etl/sql/app/README.md`](etl/sql/app/README.md). A conexão do relatório está em [`powerbi/connection_guide.md`](powerbi/connection_guide.md).
+
+**Ambiente demonstrativo:**
+
+```powershell
+python tests\estatico\verificar_sql.py                                         # validação estática dos SQL
+powershell -ExecutionPolicy Bypass -File scripts\criar_banco.ps1               # cria o banco (pede confirmação)
+powershell -ExecutionPolicy Bypass -File scripts\run_migrations.ps1            # esquemas *_demo, funções e views
+powershell -ExecutionPolicy Bypass -File scripts\run_demo_etl.ps1              # gera, valida e carrega a demo
+powershell -ExecutionPolicy Bypass -File scripts\run_tests.ps1 -ComReexecucao  # testes e idempotência
+```
+
+Detalhes em [`docs/etl_runbook.md`](docs/etl_runbook.md).
+
+## Testes
+
+| Parte | Como |
+|---|---|
+| Aplicação web | `npm run test` em `web/`: testes unitários e de integração contra um banco de teste próprio (`nobreza_app_teste`), incluindo concorrência e os invariantes de estoque |
+| DW real | Verificações de qualidade ao fim de cada carga; `tests/dw_real/` (idempotência, ambiente demonstrativo intacto, ausência de nomes de pessoas) |
+| Ambiente demonstrativo | `scripts\run_tests.ps1` e o verificador estático |
+| Relatórios | Conferências SQL × Power BI em `tests/reconciliacao/` |
 
 ## Estrutura do repositório
 
 ```text
 .
-├── CLAUDE.md, README.md, .env.example
-├── data/raw/           # fontes reais (ignorado pelo Git; não usadas na fase 1)
-├── data/processed/     # derivados locais (ignorado pelo Git)
-├── db/migrations/      # criação dos esquemas e tabelas
-├── db/views/           # views bi_demo
-├── db/seguranca/       # perfil de leitura bi_leitura (aplicado à parte)
-├── etl/sql/demo/       # gerador, validação, cargas e qualidade (fase 1)
-├── etl/python/         # reservado para a leitura de XLSX (fase 2; vazio)
-├── scripts/            # execução (PowerShell + psql)
-├── tests/sql/          # testes SQL (run_tests.ps1)
-├── tests/estatico/     # verificador estático dos SQL
-├── tests/reconciliacao/# conferências PostgreSQL × relatório (somente leitura)
-├── tools/powerbi/      # geradores PBIR e exportação das medidas (Node.js)
-├── powerbi/            # PBIP (relatório e modelo semântico), medidas exportadas, documentação
-└── docs/               # arquitetura, especificação, dicionário, ETL, qualidade, indicadores, decisões
-    └── referencia/     # documentos acadêmicos locais (ignorado pelo Git)
+├── web/                 # aplicação web (código, migrations, testes)
+├── db/migrations/       # DW: esquemas *_demo; real/ para os esquemas reais
+├── db/views/            # views de consumo (bi_demo e real/)
+├── db/seguranca/        # perfis de leitura do Power BI
+├── etl/sql/demo/        # gerador, validação e cargas do ambiente demonstrativo
+├── etl/sql/app/         # ETL do banco operacional para o DW real
+├── scripts/             # execução (PowerShell + psql)
+├── tests/               # testes SQL, verificador estático, DW real e reconciliação
+├── tools/powerbi/       # geradores das páginas do relatório (Node.js)
+├── powerbi/             # projetos PBIP, medidas e guias
+└── docs/                # arquitetura, dicionário de dados, ETL, qualidade, indicadores, decisões
+    └── app_web/         # especificação da aplicação web
 ```
 
-## Execução
+## Documentação
 
-Passo a passo detalhado e resultados das execuções em `docs/etl_runbook.md`. Execute a partir da raiz, no PowerShell:
+| Documento | Conteúdo |
+|---|---|
+| [`docs/app_web/especificacao.md`](docs/app_web/especificacao.md) | Regras de negócio, invariantes, modelo de dados, telas e importação da aplicação |
+| [`docs/architecture.md`](docs/architecture.md) | Arquitetura do DW |
+| [`docs/data_dictionary.md`](docs/data_dictionary.md) | Dicionário de dados do DW |
+| [`docs/indicator_catalog.md`](docs/indicator_catalog.md) | Indicadores: fórmula, unidade, período e limitações |
+| [`docs/decisions/decision_log.md`](docs/decisions/decision_log.md) | Registro de decisões de modelagem |
+| [`docs/source_inventory.md`](docs/source_inventory.md) | Inventário das planilhas de origem (sem dados pessoais) |
 
-```powershell
-python tests\estatico\verificar_sql.py                                         # validação estática (sem banco)
-powershell -ExecutionPolicy Bypass -File scripts\criar_banco.ps1               # cria PGDATABASE (confirmação)
-powershell -ExecutionPolicy Bypass -File scripts\run_migrations.ps1            # schemas *_demo, funções, views
-powershell -ExecutionPolicy Bypass -File scripts\run_demo_etl.ps1              # gera, valida e carrega a demo
-powershell -ExecutionPolicy Bypass -File scripts\run_tests.ps1 -ComReexecucao  # testes + idempotência
-```
+## Segurança e privacidade
 
-`scripts\reset_demo.ps1` (destrutivo, só dados sintéticos, exige a frase de confirmação) e `scripts\registrar_preco_ouro.ps1` (registro ou correção versionada do preço do ouro) devem ser usados somente quando autorizados.
-
-O relatório é aberto em `powerbi\relatorio_joalheria_demo.pbip` (conexão em `powerbi/connection_guide.md`). As conferências contra o banco estão em `tests/reconciliacao/README.md`.
-
-## Segurança e versionamento
-
-- Não versionar `data/raw/`, `data/processed/`, `docs/referencia/`, `.env`, credenciais, dumps ou PBIX.
-- O ambiente demo não é produção: o ETL e o `.env` usam o administrador `postgres`; o perfil previsto para o Power BI é `bi_leitura` (o usuário efetivamente gravado nas credenciais do Desktop está pendente de confirmação).
-- Não registrar dados pessoais ou comerciais reais em código, logs ou documentação.
-- Revisar `git status` antes de qualquer commit.
+- Não são versionados: planilhas de origem (`data/raw/`), arquivos derivados (`data/processed/`), documentos de referência, `.env`, credenciais, backups e arquivos PBIX.
+- A aplicação nunca usa a conta de administrador do PostgreSQL: cada parte tem seu papel, com o mínimo de privilégios.
+- Senhas são guardadas só como hash Argon2id; sessões ficam no servidor, com cookie `HttpOnly`.
+- O relatório exibido na aplicação é publicado pelo recurso "Publicar na Web" do Power BI, que é público por natureza. Por isso o modelo publicado não contém nomes de pessoas.

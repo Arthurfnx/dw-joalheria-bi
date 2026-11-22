@@ -1,28 +1,42 @@
-# Aplicação web Nobreza Jóias — 02. Especificação
+# Aplicação web Nobreza Jóias — Especificação
 
-**Status:** versão 0.2, **aprovada pelo usuário em 2026-11-22**. A versão 0.1 foi aprovada em 2026-11-10; a 0.2 troca a demonstração com dados inventados pelos dados reais das planilhas (decisão do usuário de 2026-11-21) e acrescenta a importação (seção 6) e o papel de leitura para o DW (seção 6A). Em 2026-11-22 entraram o catálogo de ouro (CLS), o tamanho só em anéis, o índice de preço, o valor e a data de aquisição, o preço do ouro com preço sugerido (3.7A) e a associação no relatório (RN-73). A T01 já está implementada; nada além dela foi implementado.
+**Versão:** 0.2 (novembro de 2026).
 
-**Escopo:** a primeira versão da aplicação, com entrega em 2026-11-24: regras de negócio com critérios de aceite, perfis e permissões, modelo lógico, operações de estoque, telas e importação dos dados reais.
+**Escopo:** a primeira versão da aplicação: regras de negócio com critérios de aceite, perfis e permissões, invariantes de estoque, modelo lógico, operações de estoque, telas e importação dos dados das planilhas.
 
-**Marcas de origem:** as mesmas do plano. **[H]** indica hipótese adotada sem confirmação do parceiro, a rever; a pergunta correspondente (Q1…Q19) está na seção G.1 do plano.
+Regras marcadas como *(a confirmar)* foram adotadas sem confirmação do proprietário da joalheria e podem mudar.
 
 ## 1. Decisões desta especificação
 
-Estas decisões são novas em relação ao plano e foram aprovadas pelo usuário em 2026-11-10.
+Decisões técnicas que orientam a implementação.
 
 | # | Decisão | Motivo |
 |---|---|---|
 | E1 | As cinco operações que alteram o estoque são **funções PL/pgSQL**, e são o único caminho de escrita nas tabelas de venda, movimentação e saldo. O papel de banco usado pela aplicação não tem INSERT, UPDATE nem DELETE nessas tabelas | Os invariantes I1 a I7 passam a valer por construção, mesmo que uma tela tenha defeito. O projeto já tem maturidade em PL/pgSQL. Custo: a regra de estoque fica em SQL e o restante em TypeScript |
-| E2 | A camada de servidor em TypeScript valida a entrada, verifica a permissão, chama a função e traduz o erro. Cadastros (produtos, domínios, usuários, rascunho de compra) são escritos por ela diretamente | Mantém a camada de domínio isolada prevista na seção D.4 do plano |
+| E2 | A camada de servidor em TypeScript valida a entrada, verifica a permissão, chama a função e traduz o erro. Cadastros (produtos, domínios, usuários, rascunho de compra) são escritos por ela diretamente | Mantém a camada de domínio isolada |
 | E3 | Exclusão física não existe: cadastros são desativados | Menos caminhos a testar; nenhum histórico é perdido |
-| E4 | O desconto não é armazenado: é a diferença entre o preço de tabela e o preço praticado do item. Desconto sobre o total da venda fica fora (Q5) | Evita dois campos que podem divergir |
-| E5 | A confirmação de compra dispensa chave de idempotência: a passagem de RASCUNHO para CONFIRMADA, feita com bloqueio da linha, já impede a confirmação dupla. A chave continua obrigatória na venda | Refina o invariante I9 do plano |
-| E6 | *(Revogada em 2026-11-21.)* A marcação de ambiente e o prefixo `FIC-` deixam de existir: a aplicação só trabalha com dados reais | Decisão do usuário |
-| E7 | Forma de pagamento, agrupamento por modelo, fotos e clientes ficam fora. Locais de estoque entram só como atributo do produto, para a consignação (seção 6). O preço do ouro entra (3.7A) | Dependem de Q1, Q5, Q9 e Q14 |
+| E4 | O desconto não é armazenado: é a diferença entre o preço de tabela e o preço praticado do item. Desconto sobre o total da venda fica fora | Evita dois campos que podem divergir |
+| E5 | A confirmação de compra dispensa chave de idempotência: a passagem de RASCUNHO para CONFIRMADA, feita com bloqueio da linha, já impede a confirmação dupla. A chave continua obrigatória na venda | Refina o invariante I9 |
+| E7 | Forma de pagamento, agrupamento por modelo, fotos e clientes ficam fora. Locais de estoque entram só como atributo do produto, para a consignação (seção 6). O preço do ouro entra (3.7A) | Dependem de definições do proprietário |
 | E8 | O nome da pessoa com quem a peça está consignada é guardado na aplicação, mas nunca sai dela: o papel de leitura do DW não enxerga essa coluna (seção 6A) | O relatório do Power BI é público |
 | E9 | A importação lê o XLSX em Node.js, com a biblioteca ExcelJS, dentro de `web/`, e não em Python | Um único projeto e uma única sessão de código; o prazo não comporta uma segunda cadeia de ferramentas |
-| E10 | Compras (T04 original) e as consultas operacionais (T05 original) saem da entrega de 2026-11-24. As consultas ficam cobertas pelo relatório do Power BI | Prazo |
-| E11 | O catálogo de ouro (CLS) é importado com todas as peças em estoque, saldo 1, sem valor nem data de aquisição; o tamanho só existe em anéis; cada peça tem índice de preço; o preço do ouro é registrado pelo cliente e gera preço sugerido; associação e ticket médio ficam no relatório, só com vendas da aplicação | Decisões do usuário de 2026-11-22 |
+| E10 | Compras e consultas operacionais ficam para uma versão posterior. As consultas são cobertas pelo relatório do Power BI | Escopo da primeira versão |
+| E11 | O catálogo de ouro (CLS) é importado com todas as peças em estoque, saldo 1, sem valor nem data de aquisição; o tamanho só existe em anéis; cada peça tem índice de preço; o preço do ouro é registrado pelo cliente e gera preço sugerido; associação e ticket médio ficam no relatório, só com vendas da aplicação | Regras de negócio da joalheria |
+
+## 1A. Invariantes de estoque e venda
+
+Válidos em qualquer operação e cobertos por testes de integração no PostgreSQL.
+
+- **I1** O saldo nunca é negativo. Não há exceção.
+- **I2** O saldo de cada produto é igual a Σ (quantidade × sinal) das suas movimentações, e isso pode ser verificado a qualquer momento.
+- **I3** Produto UNITARIO tem saldo 0 ou 1.
+- **I4** Cada item de venda confirmada gera exatamente uma SAIDA_VENDA de mesma quantidade, na mesma transação. O mesmo vale para compra e ENTRADA_COMPRA.
+- **I5** O cancelamento não apaga nem altera movimentações: gera um estorno vinculado, e uma venda só pode ser cancelada uma vez.
+- **I6** Movimentações e itens confirmados são imutáveis para o papel da aplicação.
+- **I7** Saídas não comerciais e ajustes exigem motivo e usuário e nunca geram faturamento.
+- **I8** O preço praticado é unitário, e o valor do item é quantidade × preço praticado. Peso nunca é somado a quantidade.
+- **I9** A confirmação de venda ou de compra é idempotente: a mesma chave de confirmação, enviada duas vezes (toque duplo ou reenvio em rede instável), gera uma única operação.
+- **I10** A venda guarda a data em que aconteceu (informada, nunca futura) e o momento do registro (automático). O lançamento com data anterior é permitido.
 
 ## 2. Perfis e permissões
 
@@ -32,15 +46,15 @@ Dois perfis: **Administrador** e **Vendedor**. A permissão é verificada na cam
 |---|---|---|
 | Entrar, sair, trocar a própria senha | Sim | Sim |
 | Consultar produtos e saldos | Sim | Sim |
-| Ver custos (compras, custo das entradas) | Sim | Não [H] (Q8) |
+| Ver custos (compras, custo das entradas) | Sim | Não (a confirmar) |
 | Registrar venda | Sim | Sim |
-| Consultar vendas | Todas | Todas [H] |
+| Consultar vendas | Todas | Todas (a confirmar) |
 | Cancelar venda | Sim | Não |
 | Cadastrar e editar produtos; implantar saldo inicial | Sim | Não |
 | Saída não comercial e ajuste | Sim | Não |
 | Compras (rascunho, confirmação, cancelamento, consulta) | Sim | Não |
 | Consultas operacionais (parados, mais vendidos, sem estoque) | Sim | Sim, sem valores de custo |
-| Relatórios do Power BI | Sim | Não [H] |
+| Relatórios do Power BI | Sim | Não (a confirmar) |
 | Materiais, categorias e subcategorias | Sim | Não |
 | Usuários e configurações | Sim | Não |
 
@@ -65,17 +79,17 @@ Cada regra tem um identificador. Os critérios de aceite (CA) viram testes nas t
 
 - **RN-10** Material, categoria e subcategoria têm nome único (sem diferenciar maiúsculas) e podem ser desativados. A subcategoria pertence a uma categoria e é opcional no produto.
 - **RN-11** Um item desativado não aparece para novos cadastros, mas continua visível nos produtos que já o usam.
-- **RN-12** Os materiais e as categorias iniciais são criados pela importação (seção 6). A lista definitiva depende de Q2.
+- **RN-12** Os materiais e as categorias iniciais são criados pela importação (seção 6). A lista definitiva depende do proprietário.
 
 ### 3.3 Produtos
 
 - **RN-20 Código.** Único, obrigatório, gravado em maiúsculas e sem espaços nas pontas. Não muda depois que o produto tem movimentação.
 - **RN-21 Campos.** Obrigatórios: código, descrição, material, categoria e modo de controle. Opcionais: subcategoria, peso em gramas, tamanho, índice de preço, valor de aquisição, data de aquisição (nunca futura), pedras (texto), preço de venda, estoque mínimo, local e observação. Valor e data de aquisição podem ficar vazios e ser preenchidos depois, com auditoria; o vendedor não os vê.
-- **RN-21A Tamanho só em anéis.** O campo tamanho só aparece e só é aceito quando a categoria do produto permite tamanho (`categoria.usa_tamanho`; ligado nas categorias Anel e Aliança). Nas demais, a tela não mostra o campo e o banco recusa o valor. Decisões do usuário de 2026-11-22 (Aliança incluída na mesma data).
+- **RN-21A Tamanho só em anéis.** O campo tamanho só aparece e só é aceito quando a categoria do produto permite tamanho (`categoria.usa_tamanho`; ligado nas categorias Anel e Aliança). Nas demais, a tela não mostra o campo e o banco recusa o valor.
 - **RN-21B Entrada de peça nova.** No cadastro de uma peça com saldo inicial, a implantação usa o valor de aquisição como custo e a data de aquisição como data da ocorrência (sem data, a data do dia).
 - **RN-22 Modo de controle.** `UNITARIO` (peça única; saldo 0 ou 1) ou `QUANTIDADE` (vários itens iguais sob o mesmo código). Definido por produto, sem relação com o material. Não muda depois que o produto tem movimentação.
 - **RN-23 Edição.** Toda alteração grava em auditoria os valores de antes e de depois.
-- **RN-24 Desativação.** Só com saldo zero [H]. Produto inativo não pode ser vendido, comprado nem movimentado, e pode ser reativado.
+- **RN-24 Desativação.** Só com saldo zero (a confirmar). Produto inativo não pode ser vendido, comprado nem movimentado, e pode ser reativado.
   - CA: desativar um produto com saldo é recusado, com mensagem clara.
 - **RN-25 Busca.** Por código (início) ou descrição (qualquer trecho), com filtros de material, categoria, situação e "somente com saldo".
 
@@ -100,7 +114,7 @@ Cada regra tem um identificador. Os critérios de aceite (CA) viram testes nas t
   - CA: se qualquer item não tiver saldo, nada é gravado e a mensagem identifica o produto.
 - **RN-43 Idempotência (I9).** A tela gera uma chave ao abrir a venda. Reenviar a mesma chave devolve a venda já gravada, sem duplicar.
   - CA: duas confirmações com a mesma chave, inclusive simultâneas, geram uma venda e uma saída por item.
-- **RN-44 Data da venda (I10).** Informada, com o dia atual como padrão; nunca futura. Data anterior é permitida [H] (Q19).
+- **RN-44 Data da venda (I10).** Informada, com o dia atual como padrão; nunca futura. Data anterior é permitida (a confirmar).
 - **RN-45 Cancelamento.** Só o administrador, com motivo. A venda passa a CANCELADA e cada item recebe um estorno ligado à saída original (I5). Uma venda é cancelada no máximo uma vez. Não existe cancelamento parcial.
   - CA: depois do cancelamento, o saldo volta ao valor anterior à venda e as movimentações originais continuam intactas.
 - **RN-46 Peça única devolvida.** O estorno de um produto `UNITARIO` cujo saldo já voltou a 1 por outro caminho é recusado, e o cancelamento inteiro falha.
@@ -118,24 +132,23 @@ Cada regra tem um identificador. Os critérios de aceite (CA) viram testes nas t
 ### 3.7 Consultas
 
 - **RN-60 Sem estoque.** Produtos ativos com saldo zero.
-- **RN-61 Parados.** Produtos ativos com saldo maior que zero e sem venda confirmada nos últimos N dias. N é configurável, com padrão de 180 [H] (Q11). Um produto que nunca vendeu conta a partir da primeira entrada.
+- **RN-61 Parados.** Produtos ativos com saldo maior que zero e sem venda confirmada nos últimos N dias. N é configurável, com padrão de 180 (a confirmar). Um produto que nunca vendeu conta a partir da primeira entrada.
 - **RN-62 Mais vendidos.** Soma das quantidades em vendas confirmadas no período. Vendas canceladas não contam.
 - **RN-63 Baixo estoque.** Só para produtos com estoque mínimo informado: saldo menor ou igual ao mínimo.
 - **RN-64 Tela inicial.** Quantidade e valor das vendas confirmadas do dia e do mês, últimas vendas e atalhos para registrar venda e consultar produtos.
 - **RN-65** Quantidades em peças e valores em reais nunca são somados entre si; peso não entra em nenhuma soma.
 
-### 3.7A Preço do ouro e preço sugerido (decisões do usuário de 2026-11-22)
+### 3.7A Preço do ouro e preço sugerido
 
-- **RN-66 Registro.** O administrador registra o preço do ouro: valor em reais por grama de ouro 1000 [H] (Q6) e data de vigência. Cada registro é imutável; uma correção é um novo registro. A tela mostra o histórico, do mais recente para o mais antigo, com quem registrou.
+- **RN-66 Registro.** O administrador registra o preço do ouro: valor em reais por grama de ouro 1000 (a confirmar) e data de vigência. Cada registro é imutável; uma correção é um novo registro. A tela mostra o histórico, do mais recente para o mais antigo, com quem registrou.
 - **RN-67 Vigência.** O preço vigente numa data é o registro com a maior data de vigência menor ou igual a ela.
-- **RN-68 Preço sugerido.** Para peça de material Ouro com índice de preço informado e preço do ouro vigente: preço sugerido = preço do ouro × fator × índice, arredondado em centavos. O fator fica na configuração `fator_preco_ouro`, com valor inicial 1,6. A fórmula foi indicada pelo usuário e ainda não foi confirmada com o proprietário [H]. Sem algum dos três valores, não há preço sugerido e a tela diz o que falta.
+- **RN-68 Preço sugerido.** Para peça de material Ouro com índice de preço informado e preço do ouro vigente: preço sugerido = preço do ouro × fator × índice, arredondado em centavos. O fator fica na configuração `fator_preco_ouro`, com valor inicial 1,6. A fórmula ainda não foi confirmada com o proprietário (a confirmar). Sem algum dos três valores, não há preço sugerido e a tela diz o que falta.
 - **RN-69 Uso.** O preço sugerido aparece na lista e no detalhe do produto e é o preço de tabela padrão na nova venda quando o produto não tem preço de venda cadastrado. O preço praticado continua editável. O cálculo é uma função do banco, usada pela aplicação e pelo DW.
 
 ### 3.8 Relatórios do Power BI
 
 - **RN-70** A tela Relatórios exibe, num quadro, o relatório publicado. O endereço vem da variável de ambiente `POWERBI_URL_RELATORIO`; sem ela, a tela explica que o relatório não está configurado.
-- **RN-71** *(Revogada em 2026-11-21.)*
-- **RN-73 Associação e ticket médio.** O relatório mantém a página de associação entre produtos e o ticket médio, calculados **somente** com as vendas registradas na aplicação, que têm número de venda. As vendas importadas da planilha ficam fora desses cálculos. No começo a página fica vazia e se preenche à medida que o cliente registra vendas. Decisão do usuário de 2026-11-22.
+- **RN-73 Associação e ticket médio.** O relatório mantém a página de associação entre produtos e o ticket médio, calculados **somente** com as vendas registradas na aplicação, que têm número de venda. As vendas importadas da planilha ficam fora desses cálculos. No começo a página fica vazia e se preenche à medida que o cliente registra vendas.
 - **RN-72** O endereço só é enviado ao navegador de quem tem permissão para a tela. Isso não torna o relatório privado: o link do "Publicar na Web" é público por natureza. Por isso o modelo publicado não contém nomes de pessoas (seção 6A e tarefa do DW).
 
 ### 3.9 Auditoria
@@ -394,37 +407,37 @@ Erros de negócio são sinalizados com códigos próprios, que a camada de servi
 
 | Chave | Valor padrão | Uso |
 |---|---|---|
-| `dias_produto_parado` | 180 [H] | RN-61 |
-| `fator_preco_ouro` | 1,6 [H] | RN-68 |
+| `dias_produto_parado` | 180 (a confirmar) | RN-61 |
+| `fator_preco_ouro` | 1,6 (a confirmar) | RN-68 |
 
 Variáveis de ambiente (nunca versionadas com valor): `DATABASE_URL` (papel da aplicação), `DATABASE_URL_MIGRACAO`, `DATABASE_URL_TESTE`, `DATABASE_URL_TESTE_MIGRACAO` e `POWERBI_URL_RELATORIO`.
 
 ## 5. Telas e navegação
 
-Interface em português do Brasil, valores em reais e datas no formato dia/mês/ano, no fuso de São Paulo. Largura mínima de 360 px. No celular, a navegação fica num menu recolhido; no desktop, numa barra lateral. | Rota | Tela | Conteúdo | Tarefa |
+Interface em português do Brasil, valores em reais e datas no formato dia/mês/ano, no fuso de São Paulo. Largura mínima de 360 px. No celular, a navegação fica num menu recolhido; no desktop, numa barra lateral. | Rota | Tela | Conteúdo | Situação |
 |---|---|---|---|
-| `/login` | Login | Login, senha, mensagem de erro única | T01 |
-| `/trocar-senha` | Troca de senha | Senha atual, nova e confirmação; obrigatória no primeiro acesso | T01 |
-| `/` | Início | Atalhos; em T05, os números de RN-64 | T01, T05 |
-| `/relatorios` | Relatórios | O quadro com o relatório | T01 |
-| `/admin/usuarios` | Usuários | Lista, criar, editar, desativar, redefinir senha | T01 |
-| `/admin/cadastros` | Cadastros | Materiais, categorias e subcategorias | T01 |
-| `/admin/configuracoes` | Configurações | Parâmetros de 4.5 | T01 |
-| `/admin/auditoria` | Auditoria | Lista filtrável por período, usuário e entidade | T01 |
-| `/produtos` | Produtos | Busca e filtros de RN-25; lista com código, descrição, categoria, saldo e preço | T02 |
-| `/produtos/novo`, `/produtos/[id]/editar` | Cadastro de produto | Campos de RN-21; saldo inicial opcional no cadastro novo | T02 |
-| `/produtos/[id]` | Detalhe do produto | Dados, saldo e histórico de RN-37 | T02 |
-| `/estoque/movimentar` | Saída ou ajuste | Produto, tipo, quantidade, data e motivo | T02 |
-| `/vendas/nova` | Nova venda | Busca de produto, lista de itens com quantidade e preço, total, data e confirmar | T03 |
-| `/vendas`, `/vendas/[id]` | Vendas | Lista por período; detalhe com itens e cancelamento | T03 |
-| `/compras`, `/compras/[id]` | Compras | Lista; rascunho com itens, cadastro rápido, confirmar e cancelar | T04 |
-| `/consultas` | Consultas | Sem estoque, parados, mais vendidos, baixo estoque | T05 |
+| `/login` | Login | Login, senha, mensagem de erro única | Implementada |
+| `/trocar-senha` | Troca de senha | Senha atual, nova e confirmação; obrigatória no primeiro acesso | Implementada |
+| `/` | Início | Atalhos e totais de vendas do dia e do mês (RN-64) | Implementada |
+| `/relatorios` | Relatórios | O quadro com o relatório | Implementada |
+| `/admin/usuarios` | Usuários | Lista, criar, editar, desativar, redefinir senha | Implementada |
+| `/admin/cadastros` | Cadastros | Materiais, categorias e subcategorias | Implementada |
+| `/admin/configuracoes` | Configurações | Parâmetros de 4.5 | Implementada |
+| `/admin/auditoria` | Auditoria | Lista filtrável por período, usuário e entidade | Implementada |
+| `/produtos` | Produtos | Busca e filtros de RN-25; lista com código, descrição, categoria, saldo e preço | Implementada |
+| `/produtos/novo`, `/produtos/[id]/editar` | Cadastro de produto | Campos de RN-21; saldo inicial opcional no cadastro novo | Implementada |
+| `/produtos/[id]` | Detalhe do produto | Dados, saldo e histórico de RN-37 | Implementada |
+| `/estoque/movimentar` | Saída ou ajuste | Produto, tipo, quantidade, data e motivo | Implementada |
+| `/vendas/nova` | Nova venda | Busca de produto, lista de itens com quantidade e preço, total, data e confirmar | Implementada |
+| `/vendas`, `/vendas/[id]` | Vendas | Lista por período; detalhe com itens e cancelamento | Implementada |
+| `/compras`, `/compras/[id]` | Compras | Lista; rascunho com itens, cadastro rápido, confirmar e cancelar | Versão posterior |
+| `/consultas` | Consultas | Sem estoque, parados, mais vendidos, baixo estoque | Versão posterior |
 
 Fluxo de venda no celular, que é o caminho mais usado: Início → Nova venda → digitar código ou descrição → tocar no produto (entra com quantidade 1 e o preço do cadastro) → ajustar o preço, se preciso → Confirmar → tela da venda com o número. São cinco toques para uma peça com preço de tabela.
 
 ## 6. Importação dos dados reais
 
-Decisão do usuário de 2026-11-21: a aplicação começa com os dados reais das planilhas de `data/raw/`. A importação é feita **uma única vez**, num banco sem produtos, por comando de linha. Os arquivos de origem são abertos somente para leitura e nunca alterados. As contagens citadas vêm de `docs/source_inventory.md` (inspeção de 2026-10-31) e são conferidas pela própria importação.
+A aplicação começa com os dados reais das planilhas de `data/raw/`. A importação é feita **uma única vez**, num banco sem produtos, por comando de linha. Os arquivos de origem são abertos somente para leitura e nunca alterados. As contagens citadas vêm de `docs/source_inventory.md` (inspeção de 2026-10-31) e são conferidas pela própria importação.
 
 ### 6.1 Fontes e alcance
 
@@ -433,25 +446,25 @@ Decisão do usuário de 2026-11-21: a aplicação começa com os dados reais das
 | Aba FOLHEADOS (linhas 3–1543) | Fonte principal. Cada linha é uma peça |
 | Aba RAMON - PEÇAS | Só entram as peças cujo código não existe em FOLHEADOS (274 dos 275 códigos já existem lá, com o mesmo custo). O bloco de colunas deslocadas, as linhas de serviço e conserto e o registro de pagamentos (linhas 288 em diante) não entram |
 | Aba CATEGORIAS | Não usada (uma única célula) |
-| CLS (catálogo de ouro) | **Importado** (decisão do usuário de 2026-11-22): cada linha é uma peça de ouro em estoque, saldo 1. Colunas: CODIGO, CATEGORIA, DESCRIÇÃO, PESO, Ø (tamanho, só em anéis) e Ind Preço. Não tem valor nem data de aquisição: os campos ficam vazios para o cliente preencher |
+| CLS (catálogo de ouro) | **Importado**: cada linha é uma peça de ouro em estoque, saldo 1. Colunas: CODIGO, CATEGORIA, DESCRIÇÃO, PESO, Ø (tamanho, só em anéis) e Ind Preço. Não tem valor nem data de aquisição: os campos ficam vazios para o cliente preencher |
 
 ### 6.2 Regras de transformação
 
-- **RN-90 Grão.** Uma linha da planilha é uma peça física: produto `UNITARIO` [H] (Q1), nas três fontes. Nenhum produto `QUANTIDADE` é criado pela importação.
+- **RN-90 Grão.** Uma linha da planilha é uma peça física: produto `UNITARIO` (a confirmar), nas três fontes. Nenhum produto `QUANTIDADE` é criado pela importação.
 - **RN-91 Código.** Sem espaços nas pontas e em maiúsculas. Linhas com código "Serviço" não são peças e são rejeitadas. Códigos repetidos (6 casos observados) têm **todas** as ocorrências rejeitadas: a aplicação não inventa código. O administrador cadastra essas peças depois, à mão.
-- **RN-92 Material.** Código no padrão `R07…` → Prata; padrão `N-NNNN` → Folheado [H]; toda linha do CLS → Ouro. Código fora desses padrões é rejeitado. Um código do CLS que coincida com um de FOLHEADOS ou RAMON tem as duas ocorrências rejeitadas.
+- **RN-92 Material.** Código no padrão `R07…` → Prata; padrão `N-NNNN` → Folheado (a confirmar); toda linha do CLS → Ouro. Código fora desses padrões é rejeitado. Um código do CLS que coincida com um de FOLHEADOS ou RAMON tem as duas ocorrências rejeitadas.
 - **RN-93 Categoria.** FOLHEADOS e RAMON: a primeira palavra da descrição, comparada com uma tabela de grafias observadas (por exemplo, BRINCO, BINCO e BRNCO → Brinco). CLS: a coluna CATEGORIA, normalizada pela mesma tabela (18 grafias observadas, com maiúsculas e minúsculas misturadas). Palavra fora da tabela → categoria "A classificar", para revisão. As categorias Anel e Aliança são criadas com `usa_tamanho = true`. O prefixo numérico do código não é usado: o significado não foi confirmado.
-- **RN-94 Demais campos.** Descrição como está, sem espaços nas pontas. Peso → `peso_gramas` [H] (unidade não declarada). Índice: coluna INDICE (FOLHEADOS) e Ind Preço (CLS) → `indice_preco`. Valor e data de aquisição: VALOR DE COMPRA e DATA DA COMPRA em FOLHEADOS e RAMON; vazios no CLS. A coluna de lucro e a coluna sem título são ignoradas.
+- **RN-94 Demais campos.** Descrição como está, sem espaços nas pontas. Peso → `peso_gramas` (a confirmar) (unidade não declarada). Índice: coluna INDICE (FOLHEADOS) e Ind Preço (CLS) → `indice_preco`. Valor e data de aquisição: VALOR DE COMPRA e DATA DA COMPRA em FOLHEADOS e RAMON; vazios no CLS. A coluna de lucro e a coluna sem título são ignoradas.
 - **RN-94A Tamanho.** TAMANHO (FOLHEADOS) e Ø (CLS) só são gravados em `tamanho` quando a categoria usa tamanho (RN-21A). Em outra categoria, o valor fica guardado em `produto_origem.tamanho_original` e a linha gera uma ocorrência REVISAR; nada é descartado em silêncio.
 - **RN-95 Situação pelo local do estoque.**
 
 | LOCAL DO ESTOQUE | Situação | Saldo | Local na aplicação |
 |---|---|---|---|
 | ESTOQUE, ARMARIO, MALETA 1, 2 MALETA, "novo" | Em estoque | 1 (implantação) | O mesmo, normalizado: Estoque, Armário, Maleta 1, Maleta 2 |
-| Nome de pessoa | Consignada (decisão do usuário) | 1 (implantação) | Consignado, com o nome em `consignado_com` |
-| VENDIDO | Vendida, com ou sem data de venda (decisão do usuário de 2026-11-22). Sem data, não gera histórico de venda nem ocorrência de revisão | 0 | — |
-| "sumiu" | Perdida (decisão do usuário) | 0 | — |
-| Vazio | A revisar [H] | 0 | — |
+| Nome de pessoa | Consignada | 1 (implantação) | Consignado, com o nome em `consignado_com` |
+| VENDIDO | Vendida, com ou sem data de venda. Sem data, não gera histórico de venda nem ocorrência de revisão | 0 | — |
+| "sumiu" | Perdida | 0 | — |
+| Vazio | A revisar (a confirmar) | 0 | — |
 
 - **RN-96 Venda prevalece.** Uma linha com data de venda válida é tratada como vendida, qualquer que seja o local (11 casos observados com local diferente de VENDIDO). A divergência fica registrada para revisão.
 - **RN-97 Implantação.** Cada peça com saldo 1 recebe uma movimentação `IMPLANTACAO`, com custo unitário igual ao valor de aquisição (vazio no CLS) e data da ocorrência igual à data da importação. Peças com saldo 0 não recebem movimentação.
@@ -537,7 +550,7 @@ O comando `npm run importar:planilhas -- <caminho do XLSX>` lê o arquivo com a 
 
 ## 6A. Papel de leitura para o DW
 
-Papel `nobreza_leitura_dw`, somente SELECT nas tabelas de `app` e EXECUTE em `app.preco_sugerido`, **exceto** as colunas `consignado_com` e `local_original` e as tabelas de usuário, sessão e auditoria. É usado pelo ETL do DW (tarefa T04). A exclusão por coluna garante que nenhum nome de pessoa chega ao relatório público.
+Papel `nobreza_leitura_dw`, somente SELECT nas tabelas de `app` e EXECUTE em `app.preco_sugerido`, **exceto** as colunas `consignado_com` e `local_original` e as tabelas de usuário, sessão e auditoria. É usado pelo ETL do DW real. A exclusão por coluna garante que nenhum nome de pessoa chega ao relatório público.
 
 ## 7. Testes
 
@@ -551,4 +564,4 @@ Os dados dos testes são inventados e criados pelo próprio teste ("dados de tes
 
 ## 8. Fora do escopo
 
-Clientes, fornecedores, financeiro, fotos, comprovantes, exportação, recuperação de senha por e-mail, transferência entre locais como movimentação, preço por índice, agrupamento por modelo, forma de pagamento, desconto sobre o total, devolução e troca, cancelamento parcial, gestão de tipos de movimentação pela interface, exclusão física, modo offline e hospedagem. Até 2026-11-24 também ficam fora as compras e as consultas operacionais (E10).
+Clientes, fornecedores, financeiro, fotos, comprovantes, exportação, recuperação de senha por e-mail, transferência entre locais como movimentação, preço por índice, agrupamento por modelo, forma de pagamento, desconto sobre o total, devolução e troca, cancelamento parcial, gestão de tipos de movimentação pela interface, exclusão física, modo offline e hospedagem. Na primeira versão também ficam fora as compras e as consultas operacionais (E10).

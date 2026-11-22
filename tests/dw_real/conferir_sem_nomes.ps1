@@ -1,5 +1,5 @@
 ﻿# =============================================================================
-# conferir_sem_nomes.ps1 — critério 5 da T04: nenhum nome de pessoa no DW.
+# conferir_sem_nomes.ps1 — nenhum nome de pessoa no DW.
 # SOMENTE LEITURA nos dois bancos. NUNCA imprime nem grava nomes.
 #
 # 1. No banco operacional, com o papel de migração (único que lê a coluna),

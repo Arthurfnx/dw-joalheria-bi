@@ -2,7 +2,7 @@
 -- fotografia_dw.sql — retrato do conteúdo do DW real: linhas
 -- e md5 de cada tabela de dw (sem id_execucao, que muda a cada carga) e de
 -- cada view de bi (sem colunas de execução e de horário da carga). Usado por
--- tests/dw_real/conferir_idempotencia.ps1 (critério 3 da T04).
+-- tests/dw_real/conferir_idempotencia.ps1.
 -- =============================================================================
 -- Usa só uma tabela temporária e termina em ROLLBACK: nada é gravado.
 BEGIN;

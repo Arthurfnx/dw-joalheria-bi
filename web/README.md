@@ -1,8 +1,8 @@
 # Nobreza Jóias — aplicação web
 
-Aplicação de estoque, vendas e compras da Nobreza Jóias. Next.js (App Router) + React + TypeScript, com PostgreSQL 18 local. Contém a fundação (T01: login, perfis, usuários, cadastros de domínio, auditoria, relatórios do Power BI) e o estoque (T02: importação das planilhas, produtos, saídas e ajustes, preço do ouro).
+Aplicação de estoque, vendas e compras da Nobreza Jóias. Next.js (App Router) + React + TypeScript, com PostgreSQL 18 local. Inclui login e perfis, usuários, cadastros de domínio, auditoria, produtos, estoque (saídas, ajustes e consignação), vendas, preço do ouro, importação das planilhas e a tela de relatórios do Power BI.
 
-Especificação: `docs/app_web/02_especificacao.md`.
+Especificação: `docs/app_web/especificacao.md`.
 
 ## Requisitos
 

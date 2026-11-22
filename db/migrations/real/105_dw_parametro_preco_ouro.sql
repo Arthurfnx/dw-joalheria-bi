@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS dw.parametro_preco_ouro (
     CONSTRAINT ck_parametro_preco_ouro_origem CHECK (origem_dado = 'APLICACAO')
 );
 COMMENT ON TABLE dw.parametro_preco_ouro IS 'Preço do ouro registrado pelo cliente (app.preco_ouro). data_referencia = início da vigência. Versões da mesma data: só a última é vigente. A aplicação não guarda motivo de correção (motivo_correcao fica vazio).';
-COMMENT ON COLUMN dw.parametro_preco_ouro.unidade_referencia IS 'R$ por grama de ouro 1000 — hipótese da especificação (Q6), não confirmada com o proprietário.';
+COMMENT ON COLUMN dw.parametro_preco_ouro.unidade_referencia IS 'R$ por grama de ouro 1000 — a confirmar com o proprietário.';
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_parametro_preco_ouro_vigente
     ON dw.parametro_preco_ouro (data_referencia)

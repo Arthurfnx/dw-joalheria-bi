@@ -1,5 +1,5 @@
 ﻿# =============================================================================
-# conferir_demo_intacto.ps1 — critério 2 da T04: as migrations do DW real não
+# conferir_demo_intacto.ps1 — as migrations do DW real não
 # alteram nenhum objeto nem linha dos esquemas *_demo. SOMENTE LEITURA.
 #
 #   -Gravar <arquivo>   grava a fotografia atual (antes das migrations)

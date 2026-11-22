@@ -28,8 +28,8 @@ export type Permissao = (typeof PERMISSOES)[number];
 
 const MATRIZ: Record<Perfil, ReadonlySet<Permissao>> = {
   ADMINISTRADOR: new Set(PERMISSOES),
-  // Seção 2: o vendedor consulta produtos e saldos, sem custos (Q8) nem consignado_com.
-  // Registra vendas e consulta todas [H]; cancelar é só do administrador (RN-45).
+  // Seção 2: o vendedor consulta produtos e saldos, sem custos nem consignado_com.
+  // Registra vendas e consulta todas; cancelar é só do administrador (RN-45).
   VENDEDOR: new Set<Permissao>([
     "inicio.ver",
     "senha.trocar",

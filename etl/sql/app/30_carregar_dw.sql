@@ -164,7 +164,7 @@ BEGIN
     INSERT INTO dw.parametro_preco_ouro
         (parametro_id, data_referencia, versao, preco_ouro_1000, unidade_referencia, vigente,
          substitui_parametro_id, motivo_correcao, criado_em, id_execucao)
-    SELECT id, vigente_desde, versao, valor_grama, 'R$/g ouro 1000 (hipótese Q6)', versao = total,
+    SELECT id, vigente_desde, versao, valor_grama, 'R$/g ouro 1000 (a confirmar)', versao = total,
            anterior, NULL, registrado_em, p_exec
       FROM (
             SELECT o.*,
