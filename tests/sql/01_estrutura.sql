@@ -14,10 +14,10 @@ BEGIN
         RAISE EXCEPTION 'FALHA [EST-01a]: esperado 5 schemas demo, obtido %', v_n;
     END IF;
 
-    SELECT count(*) INTO v_n FROM pg_namespace WHERE nspname IN ('staging', 'dw', 'bi', 'audit');
-    IF v_n <> 0 THEN
-        RAISE EXCEPTION 'FALHA [EST-01b]: schemas do ambiente real não devem existir na fase 1 (encontradas %)', v_n;
-    END IF;
+    -- EST-01b removida em 2026-11-22: desde 2026-11-21 os schemas reais
+    -- (staging, dw, bi, audit) podem existir, alimentados pela aplicação web.
+    -- A separação entre demo e real é garantida pelo verificador estático e
+    -- por tests/dw_real/conferir_demo_intacto.ps1.
 
     SELECT count(*) INTO v_n
       FROM unnest(ARRAY['dim_produto', 'dim_data', 'dim_tipo_movimentacao', 'parametro_preco_ouro',

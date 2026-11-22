@@ -28,12 +28,14 @@ DECLARE
     v_falhas     integer;
 BEGIN
     -- EST-01 — schemas
+    -- Desde 2026-11-21 os schemas reais (staging, dw, bi, audit) podem existir,
+    -- alimentados pela aplicação web; a contagem deles é só informativa.
     SELECT count(*) INTO v_n FROM pg_namespace
      WHERE nspname IN ('config_demo', 'staging_demo', 'dw_demo', 'bi_demo', 'audit_demo');
     SELECT count(*) INTO v_m FROM pg_namespace WHERE nspname IN ('staging', 'dw', 'bi', 'audit');
     CALL audit_demo.registrar_verificacao(p_exec, 'EST-01', 'Estrutura',
-        'Cinco schemas *_demo existem; nenhuma schema real (staging, dw, bi, audit) criada.',
-        'demo=5; reais=0', format('demo=%s; reais=%s', v_n, v_m), v_n = 5 AND v_m = 0);
+        'Cinco schemas *_demo existem (schemas reais, se existirem, não são avaliados aqui).',
+        'demo=5', format('demo=%s; reais=%s', v_n, v_m), v_n = 5);
 
     -- EST-02 — restrições, gatilhos e índice parcial
     SELECT count(*) INTO v_n
