@@ -1,6 +1,6 @@
 # Aplicação web Nobreza Jóias — 01. Planejamento técnico e funcional
 
-**Status:** versão 0.2, **aprovada pelo usuário em 2026-11-10**, com as decisões da seção "Decisões de 2026-11-10" e da seção G.2. As perguntas ao parceiro (G.1) e as decisões da trilha do cliente continuam em aberto. Nenhum código, migration ou banco foi criado até esta data.
+**Status:** versão 0.3, **aprovada pelo usuário em 2026-11-22**. A v0.2 foi aprovada em 2026-11-10; a seção "Revisão de 2026-11-21" substitui o que conflitar com ela no restante do documento (em especial a "trilha da demonstração" com dados inventados). As perguntas ao parceiro (G.1) continuam em aberto.
 
 **Escopo:** primeira tarefa da fase de aplicação web: estado atual (A), visão do aplicativo (B), MVP (C), arquitetura (D), modelagem inicial (E), roadmap (F) e perguntas (G), com uma recomendação final.
 
@@ -29,6 +29,26 @@ Fontes consultadas: `README.md`; `docs/` (arquitetura, decisões D-001 a D-049, 
 - Arquitetura adotada: **Next.js full-stack** + PostgreSQL, num único projeto, com um **banco operacional separado** do `dw_joalheria`. Demonstração executada localmente; hospedagem de produção a decidir na trilha do cliente.
 - Entrega em duas trilhas: uma **demonstração funcional com dados fictícios** em duas semanas, e a implantação no cliente depois. A entrevista com o parceiro deixa de bloquear o código da demonstração e passa a bloquear só a implantação.
 - Próximo passo: aprovar esta versão e, em seguida, a especificação da demonstração (modelo lógico e telas), que antecede a primeira tarefa de código.
+
+## Revisão de 2026-11-21
+
+Decisões do usuário:
+
+| Tema | Decisão |
+|---|---|
+| Dados | A aplicação trabalha com os **dados reais** das planilhas de `data/raw/`, importados para o banco operacional: cadastro das peças, saldo atual e histórico de vendas, sem número de venda e sem nome de cliente. A "demonstração com dados inventados" deixa de existir, e nenhuma tela nem código de servidor faz referência a ela |
+| Consignação e perda | Peça com nome de pessoa no local do estoque está consignada (continua no estoque); "sumiu" é perda |
+| Relatórios | O relatório do Power BI passa a mostrar os dados reais, vindos do banco operacional por um DW real, e continua na aplicação por "Publicar na Web". O modelo publicado não contém nomes de pessoas; os custos podem ser publicados. O usuário declarou que o proprietário concorda com a publicação |
+| Prazo | Mantido: 2026-11-24 |
+| Ouro, preço e associação (2026-11-22) | O catálogo de ouro (CLS) entra, com todas as peças em estoque; tamanho só em anéis; índice de preço, valor e data de aquisição por peça; preço do ouro registrado pelo cliente, com preço sugerido = preço do ouro × 1,6 × índice; associação entre produtos e ticket médio mantidos no relatório, só com vendas da aplicação; a evolução do estoque anterior à importação é descartada |
+
+Consequências:
+
+- **Escopo até 2026-11-24:** T01 fundação (implementada, falta rodar no banco); T02 importação, produtos e estoque; T03 vendas; T04 DW real e relatório Power BI com dados reais. Compras e consultas operacionais saem da entrega (E10 da especificação); as consultas ficam cobertas pelo relatório.
+- **T04 roda em paralelo à T03**, porque mexe em outros arquivos (`db/`, `scripts/`, `powerbi/`), e começa assim que a T02 deixar o banco carregado.
+- **A integração com o DW (antiga etapa A8) entra na entrega**, numa versão de recarga completa: o ETL lê o banco operacional por um papel sem acesso a nomes de pessoas e recria os esquemas reais `staging`, `dw` e `bi` de `dw_joalheria`. O DW e o relatório da fase 1 não são alterados.
+- **O relatório real é uma cópia** do PBIP demonstrativo, ligada ao esquema `bi`. Associação e ticket médio usam só as vendas da aplicação (começam vazios); o preço do ouro vem do registro feito pelo cliente; a evolução do estoque antes da importação é descartada.
+- **Hipóteses assumidas sem o parceiro**, listadas na seção 6 da especificação: uma linha da planilha é uma peça; o material sai do padrão do código; a categoria sai da primeira palavra da descrição; o peso está em gramas; o preço do ouro é por grama de ouro 1000; a fórmula do preço sugerido foi indicada pelo usuário e não foi confirmada com o proprietário.
 
 ## Decisões de 2026-11-10
 
@@ -529,7 +549,7 @@ A decisão de 2026-11-10 separa o trabalho em duas trilhas. A numeração A0–A
 | Etapa | Conteúdo | Depende de | Entregáveis | Critério de aprovação |
 |---|---|---|---|---|
 | **A0 Governança** | Escopo do projeto ampliado para incluir a aplicação web (feito em 2026-11-10); aprovar esta versão; decidir U3 e U9 | — | Decisões registradas | Aprovação do usuário |
-| **A2–A4 Especificação da demonstração** | Um único documento, no lugar dos três previstos na v0.1: regras de negócio com critérios de aceite, matriz de permissões, modelo lógico com DDL proposta (não aplicada) e esboço das telas e da navegação | A0 | `02_especificacao_demo.md` | Aprovação do usuário |
+| **A2–A4 Especificação da demonstração** | Um único documento, no lugar dos três previstos na v0.1: regras de negócio com critérios de aceite, matriz de permissões, modelo lógico com DDL proposta (não aplicada) e esboço das telas e da navegação | A0 | `02_especificacao.md` | Aprovação do usuário |
 | **A5 Fundação** | Tarefa T01: MVP-0 e a tela Relatórios (D.11), que por ser requisito vital fica acima da linha de corte | Especificação aprovada | Código, testes e guia de execução local | Testes passam; nenhum segredo no Git; revisão aprovada |
 | **A6 Incrementos** | T02: catálogo e estoque (MVP-1). T03: vendas (MVP-2). T04: compras (MVP-3). T05: consultas e tela inicial (MVP-4) | A5; uma tarefa por vez | Código, testes dos invariantes e documentação de cada incremento | Critérios de aceite da tarefa; revisão; demonstração ao usuário |
 | **Fechamento** | Conjunto fictício de demonstração, guia de execução, sincronização do `README.md` e revisão final | T01 a T03, no mínimo | Aplicação executável a partir do repositório | Um roteiro de demonstração percorrido do início ao fim sem erro |
@@ -643,7 +663,7 @@ A integração com o DW (A8) fica fora da entrega de duas semanas. Na demonstra�
 
 ## Recomendação: por onde começar
 
-1. **Especificação da demonstração** (`02_especificacao_demo.md`): regras com critérios de aceite, matriz de permissões, modelo lógico com DDL proposta e esboço das telas.
+1. **Especificação da demonstração** (`02_especificacao.md`): regras com critérios de aceite, matriz de permissões, modelo lógico com DDL proposta e esboço das telas.
 2. **Tarefa T01 (fundação)**, seguida das tarefas T02 a T05, na ordem da seção F.1.
 3. Em paralelo, sem bloquear nada: o roteiro de entrevista com o parceiro (Q1 a Q12 e Q19), para a trilha do cliente.
 
