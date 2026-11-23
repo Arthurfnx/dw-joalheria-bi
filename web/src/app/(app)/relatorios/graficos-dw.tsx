@@ -6,8 +6,16 @@ import type { ReactNode } from "react";
 import { Botao, Cartao, cn, GrupoCampo, Selecao } from "@/componentes/ui";
 import { GraficoBarras, GraficoTempo } from "@/componentes/graficos";
 import type { RelatoriosDw, VendasAgrupadas } from "@/servidor/servicos/relatorios-dw";
-import { LIMITE_PARADOS } from "@/servidor/servicos/relatorios-dw";
-import { descreverFiltros, type FiltrosRelatorio, type OpcoesFiltro } from "@/web/filtros-relatorios";
+import { LIMITE_PARADOS, LIMITE_PRODUTOS } from "@/servidor/servicos/relatorios-dw";
+import {
+  descreverFiltros,
+  trilhaData,
+  trilhaProduto,
+  urlDescer,
+  type FiltrosRelatorio,
+  type NivelTrilha,
+  type OpcoesFiltro,
+} from "@/web/filtros-relatorios";
 import { formatarData, formatarDecimal, formatarReais } from "@/web/formatacao";
 import { descreverSerie, formatarPecas, rotuloMes, rotuloMesLongo, type SerieGrafico } from "@/web/indicadores";
 
@@ -35,7 +43,51 @@ function seriePecas(itens: { rotulo: string; rotuloLongo: string; pecas: number 
   };
 }
 
-const porNome = (l: VendasAgrupadas[]) => l.map((x) => ({ ...x, rotulo: x.nome, rotuloLongo: x.nome }));
+const porNome = (l: VendasAgrupadas[], link?: (nome: string) => string) =>
+  l.map((x) => ({
+    ...x,
+    rotulo: x.nome,
+    rotuloLongo: x.nome,
+    ...(link ? { href: link(x.nome), rotuloLink: `Ver ${x.nome}` } : {}),
+  }));
+
+function Trilha({ rotulo, niveis }: { rotulo: string; niveis: NivelTrilha[] }) {
+  return (
+    <nav aria-label={`Trilha de ${rotulo.toLowerCase()}`} className="text-sm">
+      <ol className="flex flex-wrap items-center gap-x-1 gap-y-1">
+        <li className="mr-1 text-texto-suave">{rotulo}:</li>
+        {niveis.map((n, i) => (
+          <li key={`${i}-${n.rotulo}`} className="flex items-center gap-1">
+            {i > 0 ? <span aria-hidden="true" className="text-texto-suave">›</span> : null}
+            {n.href ? (
+              <a
+                href={n.href}
+                className="inline-flex min-h-8 items-center rounded px-1 text-primaria underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primaria"
+              >
+                {n.rotulo}
+              </a>
+            ) : (
+              <span aria-current="page" className="px-1 font-medium">
+                {n.rotulo}
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+/** Trilhas de navegação (roll-up) das hierarquias de produto e de data. */
+export function TrilhasRelatorio({ filtros }: { filtros: FiltrosRelatorio }) {
+  return (
+    <div className="space-y-1">
+      <Trilha rotulo="Produto" niveis={trilhaProduto(filtros)} />
+      <Trilha rotulo="Data" niveis={trilhaData(filtros)} />
+      <p className="text-xs text-texto-suave">Clique em uma barra para descer um nível; use a trilha para voltar.</p>
+    </div>
+  );
+}
 
 function somaReais(valores: string[]): string {
   // Soma em centavos inteiros, para não passar por ponto flutuante.
@@ -173,10 +225,23 @@ export function GraficosDw({ dados, filtros }: { dados: RelatoriosDw; filtros: F
   const saz = dados.sazonalidade.map((m) => ({ ...m, rotulo: MESES[m.mes - 1], rotuloLongo: MESES_LONGOS[m.mes - 1] }));
   const serieSazPecas = seriePecas(saz);
   const serieSazReceita = serieReceita(saz);
-  const tiposPecas = seriePecas(porNome(dados.porTipo));
-  const tiposReceita = serieReceita(porNome(dados.porTipo));
-  const materiaisPecas = seriePecas(porNome(dados.porMaterial));
-  const materiaisReceita = serieReceita(porNome(dados.porMaterial));
+  // Drill-down: Material › Tipo de peça (com material escolhido) › Produto (com tipo escolhido).
+  const linkTipo = filtros.material && !filtros.tipo ? (t: string) => urlDescer(filtros, "tipo", t) : undefined;
+  const linkMaterial = !filtros.material ? (m: string) => urlDescer(filtros, "material", m) : undefined;
+  const tiposPecas = seriePecas(porNome(dados.porTipo, linkTipo));
+  const tiposReceita = serieReceita(porNome(dados.porTipo, linkTipo));
+  const materiaisPecas = seriePecas(porNome(dados.porMaterial, linkMaterial));
+  const materiaisReceita = serieReceita(porNome(dados.porMaterial, linkMaterial));
+  // Drill-down de data: Ano › meses do ano escolhido.
+  const anos = dados.anos.map((a) => ({
+    ...a,
+    rotulo: a.ano,
+    rotuloLongo: a.ano,
+    href: urlDescer(filtros, "ano", a.ano),
+    rotuloLink: `Ver ${a.ano}`,
+  }));
+  const anosReceita = serieReceita(anos);
+  const anosPecas = seriePecas(anos);
   const medianas: SerieGrafico = {
     unidade: "PECAS",
     pontos: dados.tipoParado.map((t) => ({
@@ -209,12 +274,51 @@ export function GraficosDw({ dados, filtros }: { dados: RelatoriosDw; filtros: F
             { rotulo: "Período das vendas", valor: periodo },
           ]}
         />
+        {anos.length > 0 ? (
+          <div className="space-y-3">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="min-w-0">
+                <Subtitulo>Receita por ano (R$)</Subtitulo>
+                <GraficoBarras
+                  serie={anosReceita}
+                  ordenar={false}
+                  titulo={`Receita faturada por ano, ${filtrosTexto}`}
+                  descricao={descreverSerie(anosReceita, "itens", totalReceita)}
+                />
+              </div>
+              <div className="min-w-0">
+                <Subtitulo>Peças vendidas por ano</Subtitulo>
+                <GraficoBarras
+                  serie={anosPecas}
+                  ordenar={false}
+                  titulo={`Peças vendidas por ano, ${filtrosTexto}`}
+                  descricao={descreverSerie(anosPecas, "itens", totalPecas)}
+                />
+              </div>
+            </div>
+            <Tabela legenda="Receita e peças por trimestre de cada ano" cabecalho={["Ano", "T1", "T2", "T3", "T4"]}>
+              {anos.map((a) => (
+                <tr key={a.ano}>
+                  <th scope="row" className="text-left font-medium">
+                    {a.ano}
+                  </th>
+                  {a.trimestres.map((t) => (
+                    <td key={t.trimestre} className="text-right">
+                      {formatarReais(t.receita)}
+                      <span className="block text-xs text-texto-suave">{formatarPecas(t.pecas)}</span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </Tabela>
+          </div>
+        ) : null}
         {meses.length === 0 ? (
           <SemDados />
         ) : (
           <>
             <div>
-              <Subtitulo>Receita por mês (R$)</Subtitulo>
+              <Subtitulo>Receita por mês (R$){filtros.ano ? ` em ${filtros.ano}` : ""}</Subtitulo>
               <GraficoTempo
                 tipo="colunas"
                 serie={serieReceitaMes}
@@ -223,7 +327,7 @@ export function GraficosDw({ dados, filtros }: { dados: RelatoriosDw; filtros: F
               />
             </div>
             <div>
-              <Subtitulo>Peças vendidas por mês</Subtitulo>
+              <Subtitulo>Peças vendidas por mês{filtros.ano ? ` em ${filtros.ano}` : ""}</Subtitulo>
               <GraficoTempo
                 tipo="colunas"
                 serie={seriePecasMes}
@@ -278,6 +382,33 @@ export function GraficosDw({ dados, filtros }: { dados: RelatoriosDw; filtros: F
             </div>
           </div>
         )}
+        {dados.produtos && dados.produtos.linhas.length > 0 ? (
+          <div>
+            <Subtitulo>Produtos vendidos ({filtrosTexto})</Subtitulo>
+            <p className="mb-2 text-sm text-texto-suave">
+              {dados.produtos.total > dados.produtos.linhas.length
+                ? `Mostrando os ${dados.produtos.linhas.length} de maior receita entre ${INTEIRO.format(dados.produtos.total)} produtos vendidos.`
+                : `${INTEIRO.format(dados.produtos.total)} produtos vendidos.`}{" "}
+              Total do nível: {totalReceita}, {totalPecas}.
+            </p>
+            <Tabela
+              legenda={`Produtos vendidos, até ${LIMITE_PRODUTOS}, maior receita primeiro`}
+              cabecalho={["Código", "Descrição", "Peças", "Receita"]}
+              colunasTexto={2}
+            >
+              {dados.produtos.linhas.map((l, i) => (
+                <tr key={`${l.codigo}-${i}`}>
+                  <td>{l.codigo}</td>
+                  <td className="max-w-[16rem] truncate" title={l.descricao}>
+                    {l.descricao}
+                  </td>
+                  <td className="text-right">{INTEIRO.format(l.pecas)}</td>
+                  <td className="text-right">{formatarReais(l.receita)}</td>
+                </tr>
+              ))}
+            </Tabela>
+          </div>
+        ) : null}
       </Secao>
 
       <Secao

@@ -5,7 +5,7 @@ import { poolDw } from "@/servidor/bd/conexao-dw";
 import { carregarRelatorios, opcoesFiltro, type RelatoriosDw } from "@/servidor/servicos/relatorios-dw";
 import { lerFiltros, type FiltrosRelatorio, type OpcoesFiltro, type ParametrosUrl } from "@/web/filtros-relatorios";
 import { exigirAcessoRota } from "@/web/sessao";
-import { CabecalhoGraficos, FormularioFiltros, GraficosDw } from "./graficos-dw";
+import { CabecalhoGraficos, FormularioFiltros, GraficosDw, TrilhasRelatorio } from "./graficos-dw";
 
 export const metadata: Metadata = { title: "Relatórios" };
 
@@ -92,6 +92,9 @@ export default async function PaginaRelatorios({ searchParams }: { searchParams:
         ) : (
           <>
             <CabecalhoGraficos dataReferencia={dw.dados.info.dataReferencia} carregadoEm={dw.dados.info.carregadoEm} />
+            <Cartao className="mt-4">
+              <TrilhasRelatorio filtros={dw.filtros} />
+            </Cartao>
             <Cartao className="mt-4">
               <FormularioFiltros opcoes={dw.opcoes} filtros={dw.filtros} />
             </Cartao>

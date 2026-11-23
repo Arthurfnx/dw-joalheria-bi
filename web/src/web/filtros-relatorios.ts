@@ -56,3 +56,47 @@ export function descreverFiltros(f: FiltrosRelatorio): string {
   ].filter(Boolean);
   return partes.length === 0 ? "todos os dados" : partes.join(", ");
 }
+
+// Drill-down e roll-up: cada nível das hierarquias é um link que muda os
+// filtros da URL, sem estado no navegador. Material › Tipo de peça › Produto;
+// Ano › Mês (trimestres aparecem como totais no nível do ano).
+
+/** Endereço da tela Relatórios com os filtros dados; `null` some da URL. */
+export function urlRelatorios(f: FiltrosRelatorio): string {
+  const q = new URLSearchParams();
+  if (f.material) q.set("material", f.material);
+  if (f.tipo) q.set("tipo", f.tipo);
+  if (f.ano) q.set("ano", f.ano);
+  const texto = q.toString();
+  return texto ? `/relatorios?${texto}` : "/relatorios";
+}
+
+/** Desce um nível da hierarquia, preservando os demais filtros. */
+export function urlDescer(f: FiltrosRelatorio, nivel: "material" | "tipo" | "ano", valor: string): string {
+  return urlRelatorios({ ...f, [nivel]: valor });
+}
+
+export interface NivelTrilha {
+  rotulo: string;
+  /** `null` no nível atual (último da trilha), que não é link. */
+  href: string | null;
+}
+
+function fecharTrilha(niveis: { rotulo: string; href: string }[]): NivelTrilha[] {
+  return niveis.map((n, i) => ({ rotulo: n.rotulo, href: i === niveis.length - 1 ? null : n.href }));
+}
+
+/** Todos › Material › Tipo: cada nível remove os filtros de produto abaixo dele e mantém o Ano. */
+export function trilhaProduto(f: FiltrosRelatorio): NivelTrilha[] {
+  const niveis = [{ rotulo: "Todos os materiais", href: urlRelatorios({ ...f, material: null, tipo: null }) }];
+  if (f.material) niveis.push({ rotulo: f.material, href: urlRelatorios({ ...f, tipo: null }) });
+  if (f.tipo) niveis.push({ rotulo: f.tipo, href: urlRelatorios(f) });
+  return fecharTrilha(niveis);
+}
+
+/** Todos os anos › Ano: o primeiro nível remove o Ano e mantém Material e Tipo. */
+export function trilhaData(f: FiltrosRelatorio): NivelTrilha[] {
+  const niveis = [{ rotulo: "Todos os anos", href: urlRelatorios({ ...f, ano: null }) }];
+  if (f.ano) niveis.push({ rotulo: f.ano, href: urlRelatorios(f) });
+  return fecharTrilha(niveis);
+}

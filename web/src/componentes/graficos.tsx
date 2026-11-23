@@ -40,12 +40,14 @@ function SvgAcessivel({
   descricao,
   largura,
   altura,
+  interativo = false,
   children,
-}: PropsGrafico & { largura: number; altura: number; children: ReactNode }) {
+}: PropsGrafico & { largura: number; altura: number; interativo?: boolean; children: ReactNode }) {
   const id = useId();
   return (
     <svg
-      role="img"
+      // Com links dentro, "img" esconderia os links dos leitores de tela; vira um grupo.
+      role={interativo ? "group" : "img"}
       aria-labelledby={`${id}-t ${id}-d`}
       width={largura}
       height={altura}
@@ -187,9 +189,14 @@ export function GraficoTempo({ serie, tipo, ...props }: PropsGrafico & { serie: 
  * Comparação entre itens: barras horizontais, do maior para o menor, com o
  * valor escrito ao fim de cada barra. O nome fica acima da barra, para caber no celular.
  */
-export function GraficoBarras({ serie, ...props }: PropsGrafico & { serie: SerieGrafico }) {
+export function GraficoBarras({
+  serie,
+  ordenar = true,
+  ...props
+}: PropsGrafico & { serie: SerieGrafico; /** `false` mantém a ordem recebida (ex.: anos). */ ordenar?: boolean }) {
   const [ref, largura] = useLargura<HTMLDivElement>();
-  const pontos = [...serie.pontos].sort((a, b) => b.valor - a.valor);
+  const pontos = ordenar ? [...serie.pontos].sort((a, b) => b.valor - a.valor) : serie.pontos;
+  const interativo = pontos.some((p) => p.href);
   const maior = Math.max(1, ...pontos.map((p) => p.valor));
   const linha = 40;
   const altura = pontos.length * linha;
@@ -202,12 +209,12 @@ export function GraficoBarras({ serie, ...props }: PropsGrafico & { serie: Serie
   return (
     <div ref={ref} className="w-full min-w-0">
       {largura > 0 ? (
-        <SvgAcessivel {...props} largura={largura} altura={altura}>
+        <SvgAcessivel {...props} largura={largura} altura={altura} interativo={interativo}>
           {pontos.map((p, i) => {
             const y = i * linha;
             const w = Math.max((p.valor / maior) * larguraBarraMax, p.valor > 0 ? 2 : 0);
-            return (
-              <g key={p.rotulo}>
+            const conteudo = (
+              <>
                 <text x={0} y={y + 12} fontSize={FONTE} fill="var(--color-texto)">
                   <title>{p.rotuloLongo}</title>
                   {cortar(p.rotulo)}
@@ -216,7 +223,28 @@ export function GraficoBarras({ serie, ...props }: PropsGrafico & { serie: Serie
                 <text x={w + 6} y={y + 25} dy="0.32em" fontSize={FONTE} fill="var(--color-texto-suave)">
                   {p.texto}
                 </text>
-              </g>
+              </>
+            );
+            if (!p.href) return <g key={p.rotulo}>{conteudo}</g>;
+            // A linha inteira (40 px de altura) é a área clicável, para funcionar no celular.
+            return (
+              <a
+                key={p.rotulo}
+                href={p.href}
+                aria-label={`${p.rotuloLink ?? `Ver ${p.rotuloLongo}`}: ${p.texto}`}
+                className="group cursor-pointer outline-none"
+              >
+                <rect
+                  x={0}
+                  y={y + 1}
+                  width={largura}
+                  height={linha - 2}
+                  rx={4}
+                  fill="transparent"
+                  className="group-hover:fill-fundo group-focus-visible:stroke-primaria group-focus-visible:stroke-2"
+                />
+                {conteudo}
+              </a>
             );
           })}
         </SvgAcessivel>

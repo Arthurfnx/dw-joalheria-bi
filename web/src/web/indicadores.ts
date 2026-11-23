@@ -52,6 +52,10 @@ export interface PontoGrafico {
   valor: number;
   /** Valor exato formatado, exibido ao usuário. */
   texto: string;
+  /** Drill-down: endereço do nível abaixo; a barra vira link. */
+  href?: string;
+  /** Nome acessível do link ("Ver Folheado"). */
+  rotuloLink?: string;
 }
 
 export interface SerieGrafico {

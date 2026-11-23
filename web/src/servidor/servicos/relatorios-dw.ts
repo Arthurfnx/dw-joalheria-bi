@@ -31,7 +31,7 @@ const REF = `ref AS (
 /** Vendas dentro dos três filtros, com o produto. */
 const VENDAS_FILTRADAS = `vf AS (
     SELECT v.data_hora_venda, v.quantidade_vendida, v.valor_faturado, v.entra_faturamento,
-           p.material, p.tipo_peca, p.data_aquisicao
+           p.material, p.tipo_peca, p.data_aquisicao, p.codigo_produto, p.descricao
       FROM bi.vw_fato_venda_item v
       JOIN bi.vw_dim_produto p ON p.produto_key = v.produto_key
      WHERE ${FILTRO_PRODUTO}
@@ -144,6 +144,90 @@ export async function vendasPorMes(dw: ConsultorDw, f: FiltrosRelatorio): Promis
     parametrosConsulta(f),
   );
   return rows;
+}
+
+export interface AnoVendas {
+  /** AAAA. */
+  ano: string;
+  pecas: number;
+  receita: string;
+  /** T1 a T4, sempre os quatro, com zero onde não houve venda. */
+  trimestres: { trimestre: number; pecas: number; receita: string }[];
+}
+
+/** Nível Ano da hierarquia de data, com os totais por trimestre do ano. */
+export async function vendasPorAno(dw: ConsultorDw, f: FiltrosRelatorio): Promise<AnoVendas[]> {
+  const { rows } = await dw.query<{ ano: string; trimestre: number; pecas: number; receita: string }>(
+    `WITH ${VENDAS_FILTRADAS},
+     anos AS (SELECT DISTINCT extract(year FROM data_hora_venda)::int AS ano FROM vf)
+     SELECT a.ano::text AS ano, t.trimestre,
+            COALESCE(sum(vf.quantidade_vendida), 0)::int AS pecas,
+            COALESCE(sum(vf.valor_faturado), 0)::numeric(14,2)::text AS receita
+       FROM anos a
+      CROSS JOIN generate_series(1, 4) AS t(trimestre)
+       LEFT JOIN vf ON extract(year FROM vf.data_hora_venda)::int = a.ano
+                   AND extract(quarter FROM vf.data_hora_venda)::int = t.trimestre
+      GROUP BY a.ano, t.trimestre
+      ORDER BY a.ano, t.trimestre`,
+    parametrosConsulta(f),
+  );
+  const anos = new Map<string, AnoVendas>();
+  for (const r of rows) {
+    const a = anos.get(r.ano) ?? { ano: r.ano, pecas: 0, receita: "0.00", trimestres: [] };
+    a.trimestres.push({ trimestre: r.trimestre, pecas: r.pecas, receita: r.receita });
+    a.pecas += r.pecas;
+    a.receita = somarReais(a.receita, r.receita);
+    anos.set(r.ano, a);
+  }
+  return [...anos.values()];
+}
+
+/** Soma de dois valores em R$ (texto com duas casas) em centavos inteiros, sem ponto flutuante. */
+export function somarReais(a: string, b: string): string {
+  const centavos = (v: string) => BigInt(v.replace(".", ""));
+  const total = centavos(a) + centavos(b);
+  const negativo = total < BigInt(0);
+  const texto = (negativo ? -total : total).toString().padStart(3, "0");
+  return `${negativo ? "-" : ""}${texto.slice(0, -2)}.${texto.slice(-2)}`;
+}
+
+export const LIMITE_PRODUTOS = 20;
+
+export interface ProdutoVendido {
+  codigo: string;
+  descricao: string;
+  pecas: number;
+  receita: string;
+}
+
+export interface ProdutosVendidos {
+  /** Produtos distintos vendidos dentro dos filtros (antes do limite). */
+  total: number;
+  linhas: ProdutoVendido[];
+}
+
+/** Nível Produto da hierarquia de produto: os mais vendidos em receita dentro dos filtros. */
+export async function produtosVendidos(
+  dw: ConsultorDw,
+  f: FiltrosRelatorio,
+  limite = LIMITE_PRODUTOS,
+): Promise<ProdutosVendidos> {
+  const { rows } = await dw.query<ProdutoVendido & { total: number }>(
+    `WITH ${VENDAS_FILTRADAS},
+     g AS (
+         SELECT codigo_produto AS codigo, descricao,
+                sum(quantidade_vendida)::int AS pecas,
+                COALESCE(sum(valor_faturado), 0)::numeric(14,2) AS receita
+           FROM vf
+          GROUP BY codigo_produto, descricao
+     )
+     SELECT codigo, descricao, pecas, receita::text AS receita, (count(*) OVER ())::int AS total
+       FROM g
+      ORDER BY g.receita DESC, pecas DESC, codigo
+      LIMIT $4::int`,
+    [...parametrosConsulta(f), limite],
+  );
+  return { total: rows[0]?.total ?? 0, linhas: rows.map((r) => ({ codigo: r.codigo, descricao: r.descricao, pecas: r.pecas, receita: r.receita })) };
 }
 
 export interface VendasAgrupadas {
@@ -398,6 +482,10 @@ export interface RelatoriosDw {
   info: InfoCarga;
   totais: TotaisVendas;
   meses: MesVendasDw[];
+  /** Vazio quando o Ano está escolhido (nível do mês). */
+  anos: AnoVendas[];
+  /** `null` fora do nível Produto (Tipo de peça não escolhido). */
+  produtos: ProdutosVendidos | null;
   porTipo: VendasAgrupadas[];
   porMaterial: VendasAgrupadas[];
   taxa: TaxaVenda[];
@@ -408,10 +496,12 @@ export interface RelatoriosDw {
 }
 
 export async function carregarRelatorios(dw: ConsultorDw, f: FiltrosRelatorio): Promise<RelatoriosDw> {
-  const [info, totais, meses, porTipo, porMaterial, taxa, parados, tipoParado, saz, repo] = await Promise.all([
+  const [info, totais, meses, anos, produtos, porTipo, porMaterial, taxa, parados, tipoParado, saz, repo] = await Promise.all([
     infoCarga(dw),
     totaisVendas(dw, f),
     vendasPorMes(dw, f),
+    f.ano ? Promise.resolve([]) : vendasPorAno(dw, f),
+    f.tipo ? produtosVendidos(dw, f) : Promise.resolve(null),
     vendasPor(dw, f, "tipo_peca"),
     vendasPor(dw, f, "material"),
     taxaVendaPorTipo(dw, f),
@@ -420,5 +510,5 @@ export async function carregarRelatorios(dw: ConsultorDw, f: FiltrosRelatorio): 
     sazonalidade(dw, f),
     reposicao(dw, f),
   ]);
-  return { info, totais, meses, porTipo, porMaterial, taxa, parados, tipoParado, sazonalidade: saz, reposicao: repo };
+  return { info, totais, meses, anos, produtos, porTipo, porMaterial, taxa, parados, tipoParado, sazonalidade: saz, reposicao: repo };
 }
