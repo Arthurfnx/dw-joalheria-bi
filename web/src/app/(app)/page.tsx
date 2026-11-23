@@ -4,7 +4,7 @@ import { bdAplicacao } from "@/servidor/bd/conexao";
 import { temPermissao } from "@/servidor/permissoes";
 import { totaisDeVendas } from "@/servidor/servicos/vendas";
 import { formatarReais } from "@/web/formatacao";
-import { itensDoMenu } from "@/web/menu";
+import { acoesRapidasDaInicio, atalhosDaInicio } from "@/web/menu";
 import { exigirAcessoRota } from "@/web/sessao";
 
 const DESCRICOES: Record<string, string> = {
@@ -27,9 +27,9 @@ export default async function PaginaInicial() {
   const ator = await exigirAcessoRota("/");
   // RN-64: só vendas confirmadas da aplicação; as vendas antigas da planilha não entram.
   const totais = temPermissao(ator.perfil, "vendas.consultar") ? await totaisDeVendas(bdAplicacao(), ator) : null;
-  const atalhos = itensDoMenu(ator.perfil).filter((item) => item.rota !== "/");
+  const acoesRapidas = acoesRapidasDaInicio(ator.perfil);
+  const atalhos = atalhosDaInicio(ator.perfil);
   const primeiroNome = ator.nome.split(" ")[0];
-  const podeVender = temPermissao(ator.perfil, "vendas.registrar");
   const podeGerenciarProdutos = temPermissao(ator.perfil, "produtos.gerenciar");
   const descricao = (rota: string) =>
     rota === "/produtos" && podeGerenciarProdutos ? "Cadastrar, consultar e editar produtos, saldos e preços" : DESCRICOES[rota];
@@ -52,14 +52,11 @@ export default async function PaginaInicial() {
           </Cartao>
         </div>
       ) : null}
-      {podeVender || podeGerenciarProdutos ? (
+      {acoesRapidas.length > 0 ? (
         <div className="mb-4 flex flex-wrap gap-3">
-          {podeVender ? (
-            <Link href="/vendas/nova" className={classeBotaoPrincipal}>+ Nova venda</Link>
-          ) : null}
-          {podeGerenciarProdutos ? (
-            <Link href="/produtos/novo" className={classeBotaoPrincipal}>+ Cadastrar produto</Link>
-          ) : null}
+          {acoesRapidas.map((acao) => (
+            <Link key={acao.rota} href={acao.rota} className={classeBotaoPrincipal}>{acao.rotulo}</Link>
+          ))}
         </div>
       ) : null}
       {atalhos.length === 0 ? (
