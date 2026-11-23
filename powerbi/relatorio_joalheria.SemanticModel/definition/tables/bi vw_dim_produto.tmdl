@@ -150,11 +150,28 @@ table 'bi vw_dim_produto'
 
 		annotation SummarizationSetBy = Automatic
 
+		annotation UnderlyingDateTimeDataType = Date
+
+	hierarchy 'Hierarquia de Produto'
+		lineageTag: 9d4348ee-e6c8-48a5-9b02-2ccdccf93e24
+
+		level Material
+			lineageTag: d22588e5-dc41-47ef-84bd-489dc2c80304
+			column: material
+
+		level 'Tipo de peça'
+			lineageTag: 6249f45a-c61b-4489-8b2b-093b2543faea
+			column: tipo_peca
+
+		level Produto
+			lineageTag: 5b0e2a51-8f3c-4d7e-9a61-2c4f7d93b1e8
+			column: codigo_produto
+
 	partition 'bi vw_dim_produto' = m
 		mode: import
 		source =
 				let
-				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    Fonte = PostgreSQL.Database("nobreza-dw.postgres.database.azure.com:5432", "dw_joalheria"),
 				    bi_vw_dim_produto = Fonte{[Schema="bi",Item="vw_dim_produto"]}[Data]
 				in
 				    bi_vw_dim_produto

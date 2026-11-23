@@ -75,7 +75,7 @@ table 'bi vw_dim_tipo_movimentacao'
 		mode: import
 		source =
 				let
-				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    Fonte = PostgreSQL.Database("nobreza-dw.postgres.database.azure.com:5432", "dw_joalheria"),
 				    bi_vw_dim_tipo_movimentacao = Fonte{[Schema="bi",Item="vw_dim_tipo_movimentacao"]}[Data]
 				in
 				    bi_vw_dim_tipo_movimentacao

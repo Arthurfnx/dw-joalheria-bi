@@ -5,7 +5,7 @@
     "x": 32,
     "y": 120,
     "z": 3000,
-    "height": 24,
+    "height": 64,
     "width": 808,
     "tabOrder": 3000
   },
@@ -23,11 +23,22 @@
                     "textStyle": {
                       "fontFamily": "Segoe UI",
                       "fontSize": "11pt",
-                      "color": "#5F6368"
+                      "color": "#5f6368"
                     }
                   }
-                ],
-                "horizontalTextAlignment": "left"
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Drill-down em \"Entradas e saídas por período e tipo\" (Ano › Trimestre › Mês › Dia): as setas no canto do gráfico (ou botão direito → \"Fazer drill down\") descem um nível; a seta para cima volta.",
+                    "textStyle": {
+                      "fontFamily": "Segoe UI",
+                      "fontSize": "10pt",
+                      "color": "#5f6368"
+                    }
+                  }
+                ]
               }
             ]
           }

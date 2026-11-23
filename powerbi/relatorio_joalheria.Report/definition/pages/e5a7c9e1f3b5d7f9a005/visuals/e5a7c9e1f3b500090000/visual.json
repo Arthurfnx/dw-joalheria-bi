@@ -410,5 +410,93 @@
         }
       ]
     }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "19d36fb0ea48cdee0b3f",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Medidas"
+              }
+            },
+            "Property": "Entradas por Compra (Peças)"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "1899648428846b30a93c",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Medidas"
+              }
+            },
+            "Property": "Saídas por Venda (Peças)"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "7276cd614947261ea12a",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Medidas"
+              }
+            },
+            "Property": "Saídas por Presente (Peças)"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "38a641f9dfc3c5d39f32",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Medidas"
+              }
+            },
+            "Property": "Ajustes Positivos (Peças)"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "c08050ab84744be1fbe7",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Medidas"
+              }
+            },
+            "Property": "Ajustes Negativos (Peças)"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "17cf3fcbee3931d58b7a",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Medidas"
+              }
+            },
+            "Property": "Estoque Atual (Peças)"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
   }
 }

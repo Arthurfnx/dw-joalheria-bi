@@ -109,7 +109,7 @@ table 'bi vw_fato_movimentacao_estoque'
 		mode: import
 		source =
 				let
-				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    Fonte = PostgreSQL.Database("nobreza-dw.postgres.database.azure.com:5432", "dw_joalheria"),
 				    bi_vw_fato_movimentacao_estoque = Fonte{[Schema="bi",Item="vw_fato_movimentacao_estoque"]}[Data]
 				in
 				    bi_vw_fato_movimentacao_estoque

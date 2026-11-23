@@ -5,7 +5,7 @@
     "x": 32,
     "y": 120,
     "z": 3000,
-    "height": 24,
+    "height": 64,
     "width": 1016,
     "tabOrder": 3000
   },
@@ -23,6 +23,19 @@
                     "textStyle": {
                       "fontFamily": "Segoe UI",
                       "fontSize": "11pt",
+                      "color": "#5F6368"
+                    }
+                  }
+                ],
+                "horizontalTextAlignment": "left"
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Drill-down em \"Receita realizada por período\" (Ano › Trimestre › Mês › Dia) e \"Receita por material\" (Material › Tipo de peça › Produto): as setas no canto do gráfico (ou botão direito → \"Fazer drill down\") descem um nível; a seta para cima volta.",
+                    "textStyle": {
+                      "fontFamily": "Segoe UI",
+                      "fontSize": "10pt",
                       "color": "#5F6368"
                     }
                   }

@@ -105,5 +105,23 @@
         }
       ]
     }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "e80f2e4753bb07993097",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "bi vw_dim_data"
+              }
+            },
+            "Property": "data"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
   }
 }

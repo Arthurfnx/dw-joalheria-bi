@@ -17,19 +17,63 @@
           "projections": [
             {
               "field": {
-                "Column": {
+                "HierarchyLevel": {
                   "Expression": {
-                    "SourceRef": {
-                      "Entity": "bi vw_dim_produto"
+                    "Hierarchy": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "bi vw_dim_produto"
+                        }
+                      },
+                      "Hierarchy": "Hierarquia de Produto"
                     }
                   },
-                  "Property": "material"
+                  "Level": "Material"
                 }
               },
-              "queryRef": "bi vw_dim_produto.material",
-              "nativeQueryRef": "material",
-              "active": true,
-              "displayName": "Material"
+              "queryRef": "bi vw_dim_produto.Hierarquia de Produto.Material",
+              "nativeQueryRef": "Hierarquia de Produto Material",
+              "active": true
+            },
+            {
+              "field": {
+                "HierarchyLevel": {
+                  "Expression": {
+                    "Hierarchy": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "bi vw_dim_produto"
+                        }
+                      },
+                      "Hierarchy": "Hierarquia de Produto"
+                    }
+                  },
+                  "Level": "Tipo de peça"
+                }
+              },
+              "queryRef": "bi vw_dim_produto.Hierarquia de Produto.Tipo de peça",
+              "nativeQueryRef": "Hierarquia de Produto Tipo de peça",
+              "active": false
+            },
+            {
+              "field": {
+                "HierarchyLevel": {
+                  "Expression": {
+                    "Hierarchy": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "bi vw_dim_produto"
+                        }
+                      },
+                      "Hierarchy": "Hierarquia de Produto"
+                    }
+                  },
+                  "Level": "Produto"
+                }
+              },
+              "queryRef": "bi vw_dim_produto.Hierarquia de Produto.Produto",
+              "nativeQueryRef": "Hierarquia de Produto Produto",
+              "active": false
             }
           ]
         },
@@ -245,7 +289,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Estoque por material'"
+                  "Value": "'Estoque por material › tipo de peça › produto'"
                 }
               }
             },
@@ -297,7 +341,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Peças na posição mais recente'"
+                  "Value": "'Peças na posição mais recente · drill-down Material › Tipo de peça › Produto'"
                 }
               }
             },

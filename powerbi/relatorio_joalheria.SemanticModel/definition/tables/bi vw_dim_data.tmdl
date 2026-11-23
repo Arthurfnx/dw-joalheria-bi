@@ -129,11 +129,30 @@ table 'bi vw_dim_data'
 
 		annotation SummarizationSetBy = Automatic
 
+	hierarchy 'Hierarquia de Data'
+		lineageTag: d11441de-7472-4ed4-986d-45d88ea2a9af
+
+		level Ano
+			lineageTag: 09f84590-41cb-4b59-8cb9-e00f423b29cb
+			column: ano
+
+		level Trimestre
+			lineageTag: ec2c3109-0f16-415d-960c-7e594f096a48
+			column: trimestre
+
+		level Mês
+			lineageTag: cb2c9f0e-ce7a-4331-a823-98f9cda43f0c
+			column: nome_mes
+
+		level Dia
+			lineageTag: 993e9be4-fcc1-4d59-a1cc-2ff374012a39
+			column: dia
+
 	partition 'bi vw_dim_data' = m
 		mode: import
 		source =
 				let
-				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    Fonte = PostgreSQL.Database("nobreza-dw.postgres.database.azure.com:5432", "dw_joalheria"),
 				    bi_vw_dim_data = Fonte{[Schema="bi",Item="vw_dim_data"]}[Data]
 				in
 				    bi_vw_dim_data

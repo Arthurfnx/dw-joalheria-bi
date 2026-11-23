@@ -17,19 +17,83 @@
           "projections": [
             {
               "field": {
-                "Column": {
+                "HierarchyLevel": {
                   "Expression": {
-                    "SourceRef": {
-                      "Entity": "bi vw_dim_data"
+                    "Hierarchy": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "bi vw_dim_data"
+                        }
+                      },
+                      "Hierarchy": "Hierarquia de Data"
                     }
                   },
-                  "Property": "ano_mes"
+                  "Level": "Ano"
                 }
               },
-              "queryRef": "bi vw_dim_data.ano_mes",
-              "nativeQueryRef": "ano_mes",
-              "active": true,
-              "displayName": "Mês"
+              "queryRef": "bi vw_dim_data.Hierarquia de Data.Ano",
+              "nativeQueryRef": "Hierarquia de Data Ano",
+              "active": true
+            },
+            {
+              "field": {
+                "HierarchyLevel": {
+                  "Expression": {
+                    "Hierarchy": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "bi vw_dim_data"
+                        }
+                      },
+                      "Hierarchy": "Hierarquia de Data"
+                    }
+                  },
+                  "Level": "Trimestre"
+                }
+              },
+              "queryRef": "bi vw_dim_data.Hierarquia de Data.Trimestre",
+              "nativeQueryRef": "Hierarquia de Data Trimestre",
+              "active": false
+            },
+            {
+              "field": {
+                "HierarchyLevel": {
+                  "Expression": {
+                    "Hierarchy": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "bi vw_dim_data"
+                        }
+                      },
+                      "Hierarchy": "Hierarquia de Data"
+                    }
+                  },
+                  "Level": "Mês"
+                }
+              },
+              "queryRef": "bi vw_dim_data.Hierarquia de Data.Mês",
+              "nativeQueryRef": "Hierarquia de Data Mês",
+              "active": false
+            },
+            {
+              "field": {
+                "HierarchyLevel": {
+                  "Expression": {
+                    "Hierarchy": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "bi vw_dim_data"
+                        }
+                      },
+                      "Hierarchy": "Hierarquia de Data"
+                    }
+                  },
+                  "Level": "Dia"
+                }
+              },
+              "queryRef": "bi vw_dim_data.Hierarquia de Data.Dia",
+              "nativeQueryRef": "Hierarquia de Data Dia",
+              "active": false
             }
           ]
         },
@@ -57,13 +121,18 @@
         "sort": [
           {
             "field": {
-              "Column": {
+              "HierarchyLevel": {
                 "Expression": {
-                  "SourceRef": {
-                    "Entity": "bi vw_dim_data"
+                  "Hierarchy": {
+                    "Expression": {
+                      "SourceRef": {
+                        "Entity": "bi vw_dim_data"
+                      }
+                    },
+                    "Hierarchy": "Hierarquia de Data"
                   }
                 },
-                "Property": "ano_mes"
+                "Level": "Ano"
               }
             },
             "direction": "Ascending"
@@ -251,7 +320,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Receita realizada por mês'"
+                  "Value": "'Receita realizada por período'"
                 }
               }
             },
@@ -303,7 +372,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'R$ (milhares) · eixo no formato ano-mês'"
+                  "Value": "'R$ (milhares) · drill-down Ano › Trimestre › Mês › Dia'"
                 }
               }
             },
@@ -382,7 +451,7 @@
             "altText": {
               "expr": {
                 "Literal": {
-                  "Value": "'Colunas com a receita realizada mensal no período filtrado.'"
+                  "Value": "'Colunas com a receita realizada por ano, com drill-down para trimestre, mês e dia no período filtrado.'"
                 }
               }
             }

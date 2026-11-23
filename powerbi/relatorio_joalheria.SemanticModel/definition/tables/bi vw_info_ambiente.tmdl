@@ -85,6 +85,8 @@ table 'bi vw_info_ambiente'
 
 		annotation SummarizationSetBy = Automatic
 
+		annotation UnderlyingDateTimeDataType = Date
+
 	column data_inicio_estoque
 		dataType: dateTime
 		formatString: dd/MM/yyyy
@@ -93,6 +95,8 @@ table 'bi vw_info_ambiente'
 		sourceColumn: data_inicio_estoque
 
 		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
 
 	column fator_preco_ouro
 		dataType: double
@@ -108,7 +112,7 @@ table 'bi vw_info_ambiente'
 		mode: import
 		source =
 				let
-				    Fonte = PostgreSQL.Database("localhost:5432", "dw_joalheria"),
+				    Fonte = PostgreSQL.Database("nobreza-dw.postgres.database.azure.com:5432", "dw_joalheria"),
 				    bi_vw_info_ambiente = Fonte{[Schema="bi",Item="vw_info_ambiente"]}[Data]
 				in
 				    bi_vw_info_ambiente
