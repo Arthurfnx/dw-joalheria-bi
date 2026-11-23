@@ -10,6 +10,7 @@ export const PERMISSOES = [
   "inicio.ver",
   "senha.trocar",
   "relatorios.ver",
+  "indicadores.ver",
   "usuarios.gerenciar",
   "cadastros.gerenciar",
   "configuracoes.gerenciar",
@@ -33,6 +34,8 @@ const MATRIZ: Record<Perfil, ReadonlySet<Permissao>> = {
   VENDEDOR: new Set<Permissao>([
     "inicio.ver",
     "senha.trocar",
+    // RN-115: os indicadores não mostram custo, por isso o vendedor também os vê.
+    "indicadores.ver",
     "produtos.consultar",
     "vendas.registrar",
     "vendas.consultar",
@@ -78,6 +81,7 @@ const PERMISSAO_POR_ROTA: ReadonlyArray<readonly [string, Permissao]> = [
   ["/vendas/nova", "vendas.registrar"],
   ["/vendas", "vendas.consultar"],
   ["/relatorios", "relatorios.ver"],
+  ["/indicadores", "indicadores.ver"],
 ];
 
 /**

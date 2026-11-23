@@ -1,6 +1,6 @@
 # Nobreza Jóias — aplicação web
 
-Aplicação de estoque, vendas e compras da Nobreza Jóias. Next.js (App Router) + React + TypeScript, com PostgreSQL 18 local. Inclui login e perfis, usuários, cadastros de domínio, auditoria, produtos, estoque (saídas, ajustes e consignação), vendas, preço do ouro, importação das planilhas e a tela de relatórios do Power BI.
+Aplicação de estoque, vendas e compras da Nobreza Jóias. Next.js (App Router) + React + TypeScript, com PostgreSQL 18 local. Inclui login e perfis, usuários, cadastros de domínio, auditoria, produtos, estoque (saídas, ajustes e consignação), vendas, preço do ouro, importação das planilhas e a tela de relatórios com o painel de indicadores do Grafana.
 
 Especificação: `docs/app_web/especificacao.md`.
 
@@ -36,7 +36,8 @@ Copie `.env.example` para `.env` (o `.env` não é versionado) e preencha:
 | `DATABASE_URL_TESTE` | `postgresql://nobreza_aplicacao:SENHA_DA_APLICACAO@localhost:5432/nobreza_app_teste` |
 | `DATABASE_URL_TESTE_MIGRACAO` | `postgresql://nobreza_migracao:SENHA_DA_MIGRACAO@localhost:5432/nobreza_app_teste` |
 | `DATABASE_URL_LEITURA_DW` | `postgresql://nobreza_leitura_dw:SENHA_DA_LEITURA@localhost:5432/nobreza_app`. Os testes usam o mesmo papel em `nobreza_app_teste` |
-| `POWERBI_URL_RELATORIO` | Endereço do "Publicar na Web" do relatório; precisa começar por `https://app.powerbi.com/`. Vazio ou fora desse padrão, a tela Relatórios informa que não está configurado |
+| `PAINEL_URL` | Link público do painel do Grafana Cloud, no formato `https://<pilha>.grafana.net/public-dashboards/<token>`. Vazio ou fora desse padrão, a tela Relatórios informa que não está configurado |
+| `DW_DATABASE_URL` | `postgresql://bi_leitura:SENHA_BI_LEITURA@SERVIDOR:5432/dw_joalheria?sslmode=verify-full`. Leitura do Data Warehouse (esquema `bi`, só leitura) para a seção "Gráficos e filtros" da tela Relatórios. Vazia, a seção informa "Gráficos indisponíveis: Data Warehouse não configurado" e o resto da tela funciona |
 
 Senhas com caracteres especiais (`@`, `:`, `/`, `#`, `%`) precisam ser codificadas na URL, por exemplo `@` vira `%40`.
 

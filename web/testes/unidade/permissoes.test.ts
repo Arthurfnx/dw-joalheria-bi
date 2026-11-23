@@ -28,13 +28,13 @@ describe("Matriz de permissões (especificação, seção 2)", () => {
 
   it("vendedor entra, troca a própria senha, vê o início e consulta produtos, sem custos", () => {
     const permitidas = PERMISSOES.filter((p) => temPermissao("VENDEDOR", p));
-    expect(permitidas.sort()).toEqual(["inicio.ver", "produtos.consultar", "senha.trocar", "vendas.consultar", "vendas.registrar"]);
+    expect(permitidas.sort()).toEqual(["indicadores.ver", "inicio.ver", "produtos.consultar", "senha.trocar", "vendas.consultar", "vendas.registrar"]);
     expect(temPermissao("VENDEDOR", "vendas.cancelar")).toBe(false);
     expect(temPermissao("VENDEDOR", "custos.ver")).toBe(false);
   });
 
   it("o vendedor abre a lista e o detalhe de produtos", () => {
-    for (const rota of ["/produtos", "/produtos/42", "/vendas", "/vendas/nova", "/vendas/7"]) {
+    for (const rota of ["/produtos", "/produtos/42", "/vendas", "/vendas/nova", "/vendas/7", "/indicadores"]) {
       expect(temPermissao("VENDEDOR", permissaoDaRota(rota)), rota).toBe(true);
     }
   });

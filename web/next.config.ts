@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const emDesenvolvimento = process.env.NODE_ENV === "development";
 
-// Quadros só do Power BI (RN-70) e a aplicação nunca dentro de quadro alheio.
+// A aplicação nunca fica dentro de quadro alheio.
 // Sem nonce: o Next.js precisa de scripts embutidos para hidratar a página.
 const politicaDeConteudo = [
   "default-src 'self'",
@@ -11,7 +11,6 @@ const politicaDeConteudo = [
   "img-src 'self' blob: data:",
   "font-src 'self'",
   "connect-src 'self'",
-  "frame-src https://app.powerbi.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
