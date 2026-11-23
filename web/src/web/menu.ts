@@ -8,6 +8,7 @@ const ITENS = [
   { rota: "/vendas/nova", rotulo: "Nova venda" },
   { rota: "/vendas", rotulo: "Vendas" },
   { rota: "/produtos", rotulo: "Produtos" },
+  { rota: "/produtos/novo", rotulo: "Cadastrar produto" },
   { rota: "/estoque/movimentar", rotulo: "Saída ou ajuste" },
   { rota: "/indicadores", rotulo: "Indicadores" },
   { rota: "/relatorios", rotulo: "Relatórios" },

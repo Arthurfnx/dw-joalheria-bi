@@ -48,7 +48,8 @@ export async function acaoCriarProduto(_anterior: EstadoAcao, f: FormData): Prom
     return traduzirErro(erro);
   }
   revalidatePath("/produtos");
-  redirect(`/produtos/${id}`);
+  // O parâmetro só faz a página do produto mostrar a confirmação do cadastro.
+  redirect(`/produtos/${id}?cadastrado=1`);
 }
 
 export async function acaoEditarProduto(_anterior: EstadoAcao, f: FormData): Promise<EstadoAcao> {

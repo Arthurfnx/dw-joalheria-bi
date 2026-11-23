@@ -11,6 +11,7 @@ const DESCRICOES: Record<string, string> = {
   "/vendas/nova": "Registrar uma venda",
   "/vendas": "Consultar e cancelar vendas",
   "/produtos": "Consultar produtos, saldos e preços",
+  "/produtos/novo": "Incluir uma nova peça no estoque",
   "/estoque/movimentar": "Presente, perda, roubo e ajustes",
   "/admin/preco-ouro": "Registrar o preço do grama do ouro",
   "/admin/importacao": "Lotes e pendências da importação das planilhas",
@@ -28,6 +29,12 @@ export default async function PaginaInicial() {
   const totais = temPermissao(ator.perfil, "vendas.consultar") ? await totaisDeVendas(bdAplicacao(), ator) : null;
   const atalhos = itensDoMenu(ator.perfil).filter((item) => item.rota !== "/");
   const primeiroNome = ator.nome.split(" ")[0];
+  const podeVender = temPermissao(ator.perfil, "vendas.registrar");
+  const podeGerenciarProdutos = temPermissao(ator.perfil, "produtos.gerenciar");
+  const descricao = (rota: string) =>
+    rota === "/produtos" && podeGerenciarProdutos ? "Cadastrar, consultar e editar produtos, saldos e preços" : DESCRICOES[rota];
+  const classeBotaoPrincipal =
+    "inline-flex min-h-12 items-center justify-center rounded-md bg-primaria px-6 text-base font-semibold text-primaria-texto hover:bg-primaria-escura";
   return (
     <>
       <TituloPagina descricao="Escolha uma das opções abaixo para começar.">Olá, {primeiroNome}!</TituloPagina>
@@ -45,6 +52,16 @@ export default async function PaginaInicial() {
           </Cartao>
         </div>
       ) : null}
+      {podeVender || podeGerenciarProdutos ? (
+        <div className="mb-4 flex flex-wrap gap-3">
+          {podeVender ? (
+            <Link href="/vendas/nova" className={classeBotaoPrincipal}>+ Nova venda</Link>
+          ) : null}
+          {podeGerenciarProdutos ? (
+            <Link href="/produtos/novo" className={classeBotaoPrincipal}>+ Cadastrar produto</Link>
+          ) : null}
+        </div>
+      ) : null}
       {atalhos.length === 0 ? (
         <Cartao>
           <p className="text-sm text-texto-suave">
@@ -58,7 +75,7 @@ export default async function PaginaInicial() {
               <Link href={item.rota} className="block h-full">
                 <Cartao className="h-full transition-colors hover:border-primaria">
                   <p className="font-medium">{item.rotulo}</p>
-                  <p className="mt-1 text-sm text-texto-suave">{DESCRICOES[item.rota]}</p>
+                  <p className="mt-1 text-sm text-texto-suave">{descricao(item.rota)}</p>
                 </Cartao>
               </Link>
             </li>

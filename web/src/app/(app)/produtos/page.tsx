@@ -40,10 +40,18 @@ export default async function PaginaProdutos({ searchParams }: { searchParams: P
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <TituloPagina descricao="Busque pelo início do código ou por qualquer trecho da descrição.">Produtos</TituloPagina>
+        <TituloPagina
+          descricao={
+            podeGerenciar
+              ? "Cadastre novas peças ou busque pelo início do código ou por qualquer trecho da descrição."
+              : "Busque pelo início do código ou por qualquer trecho da descrição."
+          }
+        >
+          Produtos
+        </TituloPagina>
         {podeGerenciar ? (
-          <Link href="/produtos/novo" className="inline-flex min-h-10 items-center rounded-md bg-primaria px-4 text-sm font-medium text-primaria-texto hover:bg-primaria-escura">
-            Novo produto
+          <Link href="/produtos/novo" className="inline-flex min-h-12 items-center rounded-md bg-primaria px-6 text-base font-semibold text-primaria-texto hover:bg-primaria-escura">
+            + Cadastrar produto
           </Link>
         ) : null}
       </div>

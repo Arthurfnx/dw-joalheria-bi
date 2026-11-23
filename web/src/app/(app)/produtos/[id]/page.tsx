@@ -30,9 +30,16 @@ function Dado({ rotulo, children }: { rotulo: string; children: React.ReactNode 
   );
 }
 
-export default async function PaginaProduto({ params }: { params: Promise<{ id: string }> }) {
+export default async function PaginaProduto({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ator = await exigirAcessoRota("/produtos");
   const { id } = await params;
+  const recemCadastrado = (await searchParams).cadastrado === "1";
   let dados;
   try {
     dados = await obterProduto(bdAplicacao(), ator, id);
@@ -46,6 +53,14 @@ export default async function PaginaProduto({ params }: { params: Promise<{ id: 
 
   return (
     <div className="space-y-4">
+      {recemCadastrado && podeGerenciar ? (
+        <Aviso tipo="sucesso" className="flex flex-wrap items-center justify-between gap-2">
+          <span>Produto cadastrado.</span>
+          <Link href="/produtos/novo" className="font-medium underline underline-offset-2">
+            Cadastrar outro produto
+          </Link>
+        </Aviso>
+      ) : null}
       <div>
         <Link href="/produtos" className="text-sm text-primaria hover:underline">← Produtos</Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight break-words">
