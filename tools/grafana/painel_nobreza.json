@@ -1,0 +1,1436 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_NOBREZA",
+      "label": "Nobreza DW (PostgreSQL)",
+      "description": "Fonte PostgreSQL do DW dw_joalheria com o usuário bi_leitura",
+      "type": "datasource",
+      "pluginId": "grafana-postgresql-datasource",
+      "pluginName": "PostgreSQL"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.4.0"
+    },
+    {
+      "type": "datasource",
+      "id": "grafana-postgresql-datasource",
+      "name": "PostgreSQL",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "barchart",
+      "name": "Bar chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": []
+  },
+  "description": "Indicadores de vendas e estoque da Nobreza Jóias a partir do DW PostgreSQL (esquema bi).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Sobre este painel",
+      "gridPos": {
+        "h": 5,
+        "w": 16,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Nobreza Jóias — indicadores de vendas e estoque.** Fonte: Data Warehouse PostgreSQL (esquema `bi`), alimentado pelo sistema de gestão da loja.\n\nVendas anteriores ao sistema vêm da planilha da loja, **sem número de venda**: ticket médio e associação entre produtos não são calculados com elas. \nReceita = valor faturado (sem vendas simbólicas de R$ 0,01 nem vendas sem valor, que contam como peças vendidas). Vendas canceladas não entram. \nValores em R$; estoque e vendas em peças. \"Hoje\" = data de referência da última carga (cartão ao lado)."
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Atualização dos dados",
+      "description": "Data de referência da última carga do DW (dia do último retrato do estoque) e status da carga. Todos os cálculos de \"hoje\" usam essa data.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: data de referência dos dados (cabeçalho do painel).\n-- Fórmula: data e status da última carga do DW (bi.vw_info_ambiente).\n-- Unidade: data. \"Hoje\" em todos os painéis = data de referência da carga\n-- (dia do último retrato do estoque), não o relógio do navegador.\nSELECT to_char(data_referencia, 'DD/MM/YYYY')             AS \"Dados de\",\n       status_ultima_execucao                              AS \"Última carga\",\n       to_char(ultima_carga_em AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') AS \"Carregado em (Brasília)\"\n  FROM bi.vw_info_ambiente;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/"
+        },
+        "orientation": "vertical",
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 3,
+      "type": "row",
+      "title": "1. Vendas por período",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Totais do período",
+      "description": "Receita faturada = Σ valor faturado (R$). Peças vendidas = Σ quantidade vendida, inclusive vendas simbólicas e sem valor, que aparecem em \"Peças vendidas sem receita\". Período: todas as vendas registradas.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: totais de vendas do período completo (cartões).\n-- Fórmulas:\n--   Receita faturada (R$) = Σ valor_faturado (sem valor simbólico de R$ 0,01 nem venda sem valor);\n--   Peças vendidas (peças) = Σ quantidade_vendida (inclui simbólicas e sem valor);\n--   Peças vendidas sem receita (peças) = Σ quantidade_vendida onde entra_faturamento é falso.\n-- Vendas canceladas já estão fora do fato. Valores em R$ formatados com vírgula.\nSELECT 'R$ ' || translate(to_char(COALESCE(sum(valor_faturado), 0), 'FM999,999,990.00'), ',.', '.,') AS \"Receita faturada\",\n       COALESCE(sum(quantidade_vendida), 0)                                       AS \"Peças vendidas\",\n       COALESCE(sum(quantidade_vendida) FILTER (WHERE NOT entra_faturamento), 0)  AS \"Peças vendidas sem receita\",\n       to_char(min(data_hora_venda), 'MM/YYYY') || ' a ' || to_char(max(data_hora_venda), 'MM/YYYY') AS \"Período das vendas\"\n  FROM bi.vw_fato_venda_item;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/"
+        },
+        "orientation": "vertical",
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 5,
+      "type": "barchart",
+      "title": "Receita faturada por mês (R$)",
+      "description": "Σ valor faturado por mês da venda, em R$. Meses sem venda aparecem com zero. Vendas simbólicas (R$ 0,01) e sem valor ficam fora da receita.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: receita faturada por mês.\n-- Fórmula: Σ valor_faturado por mês da venda; meses sem venda aparecem com zero,\n-- do primeiro ao último mês com venda.\n-- Unidade: R$ (reais). Peças ficam em painel separado (nunca no mesmo eixo).\nWITH meses AS (\n    SELECT generate_series(date_trunc('month', min(data_hora_venda)),\n                           date_trunc('month', max(data_hora_venda)),\n                           interval '1 month')::date AS mes\n      FROM bi.vw_fato_venda_item\n)\nSELECT (ARRAY['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'])[extract(month FROM m.mes)::int]\n       || '/' || to_char(m.mes, 'YY')                       AS \"Mês\",\n       COALESCE(sum(v.valor_faturado), 0)::numeric(12,2)     AS \"Receita (R$)\"\n  FROM meses m\n  LEFT JOIN bi.vw_fato_venda_item v ON date_trunc('month', v.data_hora_venda)::date = m.mes\n GROUP BY m.mes\n ORDER BY m.mes;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 2,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "semi-dark-yellow"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "semi-dark-yellow",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0,
+            "gradientMode": "none",
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "axisSoftMin": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "Mês",
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.85,
+        "barRadius": 0,
+        "fullHighlight": false,
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Peças vendidas por mês",
+      "description": "Σ quantidade vendida por mês da venda, em peças (inclui vendas simbólicas e sem valor). Meses sem venda aparecem com zero.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: peças vendidas por mês.\n-- Fórmula: Σ quantidade_vendida por mês da venda (inclui vendas simbólicas e sem valor);\n-- meses sem venda aparecem com zero, do primeiro ao último mês com venda.\n-- Unidade: peças.\nWITH meses AS (\n    SELECT generate_series(date_trunc('month', min(data_hora_venda)),\n                           date_trunc('month', max(data_hora_venda)),\n                           interval '1 month')::date AS mes\n      FROM bi.vw_fato_venda_item\n)\nSELECT (ARRAY['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'])[extract(month FROM m.mes)::int]\n       || '/' || to_char(m.mes, 'YY')                       AS \"Mês\",\n       COALESCE(sum(v.quantidade_vendida), 0)::int            AS \"Peças vendidas\"\n  FROM meses m\n  LEFT JOIN bi.vw_fato_venda_item v ON date_trunc('month', v.data_hora_venda)::date = m.mes\n GROUP BY m.mes\n ORDER BY m.mes;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0,
+            "gradientMode": "none",
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "axisSoftMin": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "Mês",
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.85,
+        "barRadius": 0,
+        "fullHighlight": false,
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "2. Tipos de produto vendidos",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      }
+    },
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "Peças vendidas por tipo de peça",
+      "description": "Σ quantidade vendida por tipo de peça, em peças. Período completo.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: peças vendidas por tipo de peça.\n-- Fórmula: Σ quantidade_vendida por dim_produto.tipo_peca (período completo).\n-- Unidade: peças.\nSELECT p.tipo_peca                       AS \"Tipo de peça\",\n       sum(v.quantidade_vendida)::int    AS \"Peças vendidas\"\n  FROM bi.vw_fato_venda_item v\n  JOIN bi.vw_dim_produto p ON p.produto_key = v.produto_key\n GROUP BY p.tipo_peca\n ORDER BY 2 DESC, 1;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0,
+            "gradientMode": "none",
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "axisSoftMin": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "Tipo de peça",
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.85,
+        "barRadius": 0,
+        "fullHighlight": false,
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "barchart",
+      "title": "Receita por tipo de peça (R$)",
+      "description": "Σ valor faturado por tipo de peça, em R$. Período completo. Um tipo pode ter peças vendidas e receita zero quando as vendas foram simbólicas ou sem valor.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: receita faturada por tipo de peça.\n-- Fórmula: Σ valor_faturado por dim_produto.tipo_peca (período completo).\n-- Unidade: R$ (reais).\nSELECT p.tipo_peca                               AS \"Tipo de peça\",\n       COALESCE(sum(v.valor_faturado), 0)::numeric(12,2) AS \"Receita (R$)\"\n  FROM bi.vw_fato_venda_item v\n  JOIN bi.vw_dim_produto p ON p.produto_key = v.produto_key\n GROUP BY p.tipo_peca\n ORDER BY 2 DESC, 1;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 2,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "semi-dark-yellow"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "semi-dark-yellow",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0,
+            "gradientMode": "none",
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "axisSoftMin": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "Tipo de peça",
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.85,
+        "barRadius": 0,
+        "fullHighlight": false,
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Vendas por material",
+      "description": "Peças vendidas (Σ quantidade), receita faturada (Σ valor faturado, R$) e participação de cada material nas peças vendidas. Período completo.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: vendas por material.\n-- Fórmulas: Peças vendidas = Σ quantidade_vendida; Receita = Σ valor_faturado;\n-- % das peças = peças do material ÷ total de peças vendidas.\n-- Unidades: peças, R$ e %. Período completo.\nWITH t AS (\n    SELECT p.material,\n           sum(v.quantidade_vendida)            AS pecas,\n           COALESCE(sum(v.valor_faturado), 0)   AS receita\n      FROM bi.vw_fato_venda_item v\n      JOIN bi.vw_dim_produto p ON p.produto_key = v.produto_key\n     GROUP BY p.material\n)\nSELECT material                                                                        AS \"Material\",\n       pecas::int                                                                      AS \"Peças vendidas\",\n       'R$ ' || translate(to_char(receita, 'FM999,999,990.00'), ',.', '.,')            AS \"Receita\",\n       translate(to_char(100.0 * pecas / sum(pecas) OVER (), 'FM990.0'), '.', ',') || '%' AS \"% das peças\"\n  FROM t\n ORDER BY pecas DESC, material;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Peças vendidas"
+          ],
+          "countRows": false,
+          "enablePagination": false
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "row",
+      "title": "3. Taxa de venda e tempo até a venda",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      }
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Taxa de venda e tempo até a venda — por tipo de peça",
+      "description": "Por tipo de peça. **Taxa de venda** = peças vendidas ÷ (peças vendidas + peças em estoque hoje). **Tempo até a venda** = dias entre a data de aquisição e a data da venda, só nas vendas cujo produto tem data de aquisição (a coluna \"Amostra\" mostra quantas); vendas com aquisição posterior à venda ficam fora. Cada peça do cadastro é única, por isso a medida é por tipo de peça e não por produto. Não é o giro de estoque tradicional, que exige custo das vendas e estoque médio valorizado.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 14,
+        "x": 0,
+        "y": 30
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: taxa de venda e tempo até a venda, por tipo de peça.\n-- Cada linha do cadastro é uma peça física única; por isso a medida é por tipo,\n-- não por código. Não é \"giro de estoque\" tradicional (que exige custo das vendas\n-- e estoque médio valorizado, inexistentes nas fontes).\n-- Fórmulas:\n--   Taxa de venda (%) = peças vendidas ÷ (peças vendidas + peças em estoque hoje);\n--     estoque hoje = último retrato diário (bi.vw_fato_snapshot_estoque);\n--   Tempo até a venda (dias) = data da venda − data_aquisicao do produto, só para vendas\n--     cujo produto tem data de aquisição; vendas com aquisição posterior à venda\n--     (inconsistência de cadastro) ficam fora da amostra.\n--   Amostra = número de vendas usadas no tempo até a venda.\n-- Unidades: peças, %, dias. Período: todas as vendas registradas.\nWITH estoque AS (\n    SELECT p.tipo_peca, sum(s.quantidade_em_estoque) AS pecas\n      FROM bi.vw_fato_snapshot_estoque s\n      JOIN bi.vw_dim_produto p ON p.produto_key = s.produto_key\n     WHERE s.data_key = (SELECT max(data_key) FROM bi.vw_fato_snapshot_estoque)\n     GROUP BY p.tipo_peca\n),\nvenda AS (\n    SELECT p.tipo_peca,\n           sum(v.quantidade_vendida) AS pecas,\n           count(*) FILTER (WHERE p.data_aquisicao <= v.data_hora_venda::date) AS amostra,\n           avg(v.data_hora_venda::date - p.data_aquisicao)\n               FILTER (WHERE p.data_aquisicao <= v.data_hora_venda::date) AS media_dias,\n           percentile_cont(0.5) WITHIN GROUP (ORDER BY v.data_hora_venda::date - p.data_aquisicao)\n               FILTER (WHERE p.data_aquisicao <= v.data_hora_venda::date) AS mediana_dias\n      FROM bi.vw_fato_venda_item v\n      JOIN bi.vw_dim_produto p ON p.produto_key = v.produto_key\n     GROUP BY p.tipo_peca\n),\nt AS (\n    SELECT COALESCE(v.tipo_peca, e.tipo_peca) AS tipo_peca,\n           COALESCE(v.pecas, 0) AS vendidas,\n           COALESCE(e.pecas, 0) AS em_estoque,\n           COALESCE(v.amostra, 0) AS amostra,\n           v.media_dias, v.mediana_dias\n      FROM venda v\n      FULL JOIN estoque e ON e.tipo_peca = v.tipo_peca\n)\nSELECT tipo_peca                                                         AS \"Tipo de peça\",\n       vendidas::int                                                     AS \"Peças vendidas\",\n       em_estoque::int                                                   AS \"Em estoque hoje\",\n       translate(to_char(100.0 * vendidas / (vendidas + em_estoque), 'FM990.0'), '.', ',') || '%' AS \"Taxa de venda\",\n       amostra::int                                                      AS \"Amostra (vendas com data)\",\n       translate(to_char(media_dias, 'FM99990.0'), '.', ',')             AS \"Média de dias até a venda\",\n       translate(to_char(mediana_dias, 'FM99990.0'), '.', ',')           AS \"Mediana de dias até a venda\"\n  FROM t\n WHERE vendidas + em_estoque > 0\n ORDER BY vendidas::numeric / (vendidas + em_estoque) DESC, vendidas DESC, tipo_peca;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Peças vendidas",
+            "Em estoque hoje",
+            "Amostra (vendas com data)"
+          ],
+          "countRows": false,
+          "enablePagination": false
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Taxa de venda e tempo até a venda — por material",
+      "description": "Por material. **Taxa de venda** = peças vendidas ÷ (peças vendidas + peças em estoque hoje). **Tempo até a venda** = dias entre a data de aquisição e a data da venda, só nas vendas cujo produto tem data de aquisição (a coluna \"Amostra\" mostra quantas); vendas com aquisição posterior à venda ficam fora. Cada peça do cadastro é única, por isso a medida é por material e não por produto. Não é o giro de estoque tradicional, que exige custo das vendas e estoque médio valorizado.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 10,
+        "x": 14,
+        "y": 30
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: taxa de venda e tempo até a venda, por material.\n-- Não é \"giro de estoque\" tradicional (que exige custo das vendas e estoque médio\n-- valorizado, inexistentes nas fontes).\n-- Fórmulas:\n--   Taxa de venda (%) = peças vendidas ÷ (peças vendidas + peças em estoque hoje);\n--     estoque hoje = último retrato diário (bi.vw_fato_snapshot_estoque);\n--   Tempo até a venda (dias) = data da venda − data_aquisicao do produto, só para vendas\n--     cujo produto tem data de aquisição; vendas com aquisição posterior à venda\n--     (inconsistência de cadastro) ficam fora da amostra.\n--   Amostra = número de vendas usadas no tempo até a venda.\n-- Unidades: peças, %, dias. Período: todas as vendas registradas.\nWITH estoque AS (\n    SELECT p.material, sum(s.quantidade_em_estoque) AS pecas\n      FROM bi.vw_fato_snapshot_estoque s\n      JOIN bi.vw_dim_produto p ON p.produto_key = s.produto_key\n     WHERE s.data_key = (SELECT max(data_key) FROM bi.vw_fato_snapshot_estoque)\n     GROUP BY p.material\n),\nvenda AS (\n    SELECT p.material,\n           sum(v.quantidade_vendida) AS pecas,\n           count(*) FILTER (WHERE p.data_aquisicao <= v.data_hora_venda::date) AS amostra,\n           avg(v.data_hora_venda::date - p.data_aquisicao)\n               FILTER (WHERE p.data_aquisicao <= v.data_hora_venda::date) AS media_dias,\n           percentile_cont(0.5) WITHIN GROUP (ORDER BY v.data_hora_venda::date - p.data_aquisicao)\n               FILTER (WHERE p.data_aquisicao <= v.data_hora_venda::date) AS mediana_dias\n      FROM bi.vw_fato_venda_item v\n      JOIN bi.vw_dim_produto p ON p.produto_key = v.produto_key\n     GROUP BY p.material\n),\nt AS (\n    SELECT COALESCE(v.material, e.material) AS material,\n           COALESCE(v.pecas, 0) AS vendidas,\n           COALESCE(e.pecas, 0) AS em_estoque,\n           COALESCE(v.amostra, 0) AS amostra,\n           v.media_dias, v.mediana_dias\n      FROM venda v\n      FULL JOIN estoque e ON e.material = v.material\n)\nSELECT material                                                          AS \"Material\",\n       vendidas::int                                                     AS \"Peças vendidas\",\n       em_estoque::int                                                   AS \"Em estoque hoje\",\n       translate(to_char(100.0 * vendidas / (vendidas + em_estoque), 'FM990.0'), '.', ',') || '%' AS \"Taxa de venda\",\n       amostra::int                                                      AS \"Amostra (vendas com data)\",\n       translate(to_char(media_dias, 'FM99990.0'), '.', ',')             AS \"Média de dias até a venda\",\n       translate(to_char(mediana_dias, 'FM99990.0'), '.', ',')           AS \"Mediana de dias até a venda\"\n  FROM t\n WHERE vendidas + em_estoque > 0\n ORDER BY vendidas::numeric / (vendidas + em_estoque) DESC, vendidas DESC, material;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Peças vendidas",
+            "Em estoque hoje",
+            "Amostra (vendas com data)"
+          ],
+          "countRows": false,
+          "enablePagination": false
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "4. Produtos parados (mais antigos primeiro)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      }
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "Produtos parados — Material › Tipo de peça › Produto",
+      "description": "Peças em estoque hoje (último retrato diário) com data de aquisição informada. **Dias parado** = data de referência da carga − data de aquisição, do maior para o menor. As peças sem data de aquisição estão no painel ao lado; nenhuma data é estimada.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 16,
+        "x": 0,
+        "y": 42
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: produtos parados, os mais antigos primeiro.\n-- Hierarquia: Material › Tipo de peça › Produto (código e descrição).\n-- Fórmula: Dias parado = data de referência da carga (dia do último retrato do estoque)\n--   − data_aquisicao, para cada peça com saldo > 0 no último retrato.\n-- Só peças com data de aquisição informada; as demais estão no painel\n-- \"data de aquisição não informada\" (nenhuma data é inventada).\n-- Unidades: dias e peças. Ordem: dias parado, do maior para o menor.\nWITH ref AS (\n    SELECT max(data_key) AS data_key,\n           to_date(max(data_key)::text, 'YYYYMMDD') AS data_ref\n      FROM bi.vw_fato_snapshot_estoque\n)\nSELECT p.material                                   AS \"Material\",\n       p.tipo_peca                                  AS \"Tipo de peça\",\n       p.codigo_produto                             AS \"Código\",\n       p.descricao                                  AS \"Produto\",\n       s.quantidade_em_estoque                      AS \"Peças\",\n       to_char(p.data_aquisicao, 'DD/MM/YYYY')      AS \"Aquisição\",\n       (ref.data_ref - p.data_aquisicao)            AS \"Dias parado\"\n  FROM ref\n  JOIN bi.vw_fato_snapshot_estoque s ON s.data_key = ref.data_key AND s.quantidade_em_estoque > 0\n  JOIN bi.vw_dim_produto p ON p.produto_key = s.produto_key\n WHERE p.data_aquisicao IS NOT NULL\n ORDER BY ref.data_ref - p.data_aquisicao DESC, p.material, p.tipo_peca, p.codigo_produto;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Produto"
+            },
+            "properties": [
+              {
+                "id": "custom.minWidth",
+                "value": 220
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Peças"
+          ],
+          "countRows": false,
+          "enablePagination": false
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Em estoque — data de aquisição não informada",
+      "description": "Peças em estoque hoje sem data de aquisição no cadastro, por material e tipo de peça (inclui todo o ouro). Sem a data não há como calcular dias parado; nenhuma data é estimada.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 8,
+        "x": 16,
+        "y": 42
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: peças em estoque com data de aquisição não informada.\n-- Fórmula: Σ quantidade_em_estoque no último retrato, por material e tipo de peça,\n--   para peças sem data_aquisicao (não é possível calcular dias parado; nenhuma data é inventada).\n-- Unidade: peças.\nWITH ref AS (SELECT max(data_key) AS data_key FROM bi.vw_fato_snapshot_estoque)\nSELECT p.material                                 AS \"Material\",\n       p.tipo_peca                                AS \"Tipo de peça\",\n       sum(s.quantidade_em_estoque)::int          AS \"Peças\",\n       'data de aquisição não informada'          AS \"Situação\"\n  FROM ref\n  JOIN bi.vw_fato_snapshot_estoque s ON s.data_key = ref.data_key AND s.quantidade_em_estoque > 0\n  JOIN bi.vw_dim_produto p ON p.produto_key = s.produto_key\n WHERE p.data_aquisicao IS NULL\n GROUP BY p.material, p.tipo_peca\n ORDER BY 3 DESC, 1, 2;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Peças"
+          ],
+          "countRows": false,
+          "enablePagination": false
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "row",
+      "title": "5. Tipo de peça que mais fica parado",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 58
+      }
+    },
+    {
+      "id": 18,
+      "type": "table",
+      "title": "Dias parado por tipo de peça",
+      "description": "Só peças em estoque hoje com data de aquisição. Dias parado = data de referência da carga − data de aquisição. Mediana e média por tipo de peça e % de peças com mais de 180 dias. Ordem: do tipo mais parado (maior mediana) para o menos parado. \"Sem data\" mostra as peças do tipo que ficaram fora do cálculo.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: tipo de peça que mais fica parado.\n-- Fórmulas (só peças em estoque hoje com data de aquisição):\n--   Dias parado = data de referência da carga − data_aquisicao;\n--   Mediana e média dos dias parado por tipo de peça;\n--   % acima de 180 dias = peças com mais de 180 dias parado ÷ peças com data.\n-- \"Sem data\" = peças do tipo em estoque sem data de aquisição (fora do cálculo).\n-- Unidades: dias, peças e %. Ordem: mediana, depois média, da maior para a menor.\nWITH ref AS (\n    SELECT max(data_key) AS data_key,\n           to_date(max(data_key)::text, 'YYYYMMDD') AS data_ref\n      FROM bi.vw_fato_snapshot_estoque\n),\ne AS (\n    SELECT p.tipo_peca, s.quantidade_em_estoque AS qtd,\n           CASE WHEN p.data_aquisicao IS NOT NULL THEN ref.data_ref - p.data_aquisicao END AS dias\n      FROM ref\n      JOIN bi.vw_fato_snapshot_estoque s ON s.data_key = ref.data_key AND s.quantidade_em_estoque > 0\n      JOIN bi.vw_dim_produto p ON p.produto_key = s.produto_key\n),\nt AS (\n    SELECT tipo_peca,\n           sum(qtd) FILTER (WHERE dias IS NOT NULL)            AS com_data,\n           sum(qtd) FILTER (WHERE dias IS NULL)                AS sem_data,\n           percentile_cont(0.5) WITHIN GROUP (ORDER BY dias)   AS mediana,\n           avg(dias)                                           AS media,\n           sum(qtd) FILTER (WHERE dias > 180)                  AS acima_180\n      FROM e\n     GROUP BY tipo_peca\n)\nSELECT tipo_peca                                                           AS \"Tipo de peça\",\n       com_data::int                                                       AS \"Peças com data\",\n       translate(to_char(mediana, 'FM99990.0'), '.', ',')                  AS \"Mediana de dias parado\",\n       translate(to_char(media, 'FM99990.0'), '.', ',')                    AS \"Média de dias parado\",\n       translate(to_char(100.0 * COALESCE(acima_180, 0) / com_data, 'FM990.0'), '.', ',') || '%' AS \"% acima de 180 dias\",\n       COALESCE(sem_data, 0)::int                                          AS \"Sem data (fora do cálculo)\"\n  FROM t\n WHERE com_data > 0\n ORDER BY mediana DESC, media DESC, tipo_peca;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Peças com data",
+            "Sem data (fora do cálculo)"
+          ],
+          "countRows": false,
+          "enablePagination": false
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "row",
+      "title": "6. Sazonalidade (mês do ano)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 68
+      }
+    },
+    {
+      "id": 20,
+      "type": "barchart",
+      "title": "Peças vendidas por mês do ano",
+      "description": "Σ quantidade vendida por mês do ano (jan a dez), em peças. Somando todos os anos. Há cerca de 110 vendas em dois anos de histórico e alguns meses aparecem em mais de um ano: o padrão é só indicativo.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 69
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: sazonalidade das peças vendidas.\n-- Fórmula: Σ quantidade_vendida por mês do ano (jan a dez), somando todos os anos.\n-- Unidade: peças. Limitação: cerca de 110 vendas em dois anos; o padrão é indicativo\n-- e meses cobertos por mais de um ano pesam mais.\nSELECT (ARRAY['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'])[m.mes] AS \"Mês\",\n       COALESCE(sum(v.quantidade_vendida), 0)::int                                         AS \"Peças vendidas\"\n  FROM generate_series(1, 12) AS m(mes)\n  LEFT JOIN bi.vw_fato_venda_item v ON extract(month FROM v.data_hora_venda)::int = m.mes\n GROUP BY m.mes\n ORDER BY m.mes;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0,
+            "gradientMode": "none",
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "axisSoftMin": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "Mês",
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.85,
+        "barRadius": 0,
+        "fullHighlight": false,
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "barchart",
+      "title": "Receita faturada por mês do ano (R$)",
+      "description": "Σ valor faturado por mês do ano (jan a dez), em R$. Somando todos os anos. Há cerca de 110 vendas em dois anos de histórico e alguns meses aparecem em mais de um ano: o padrão é só indicativo.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 69
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: sazonalidade da receita faturada.\n-- Fórmula: Σ valor_faturado por mês do ano (jan a dez), somando todos os anos.\n-- Unidade: R$ (reais). Limitação: cerca de 110 vendas em dois anos; o padrão é\n-- indicativo e meses cobertos por mais de um ano pesam mais.\nSELECT (ARRAY['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'])[m.mes] AS \"Mês\",\n       COALESCE(sum(v.valor_faturado), 0)::numeric(12,2)                                   AS \"Receita (R$)\"\n  FROM generate_series(1, 12) AS m(mes)\n  LEFT JOIN bi.vw_fato_venda_item v ON extract(month FROM v.data_hora_venda)::int = m.mes\n GROUP BY m.mes\n ORDER BY m.mes;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 2,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "semi-dark-yellow"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "semi-dark-yellow",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0,
+            "gradientMode": "none",
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisCenteredZero": false,
+            "axisSoftMin": 0,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "Mês",
+        "orientation": "vertical",
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.85,
+        "barRadius": 0,
+        "fullHighlight": false,
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "row",
+      "title": "7. Reposição — proposta (a confirmar com o proprietário)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 77
+      }
+    },
+    {
+      "id": 23,
+      "type": "table",
+      "title": "Cobertura do estoque por material e tipo de peça — proposta (a confirmar com o proprietário)",
+      "description": "Regra proposta, a confirmar com o proprietário. **Cobertura (meses)** = estoque atual ÷ (peças vendidas nos últimos 12 meses ÷ 12). Abaixo de 3 meses aparece em vermelho como \"Repor\". Sem vendas nos 12 meses anteriores à data de referência, a cobertura fica indefinida (—). O material entra na quebra porque o ouro não tem venda registrada e misturá-lo ao folheado do mesmo tipo distorceria a cobertura. Ordem: menor cobertura primeiro.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "${DS_NOBREZA}"
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 24,
+        "x": 0,
+        "y": 78
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "${DS_NOBREZA}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- Indicador: reposição — proposta (a confirmar com o proprietário).\n-- Fórmulas, por material e tipo de peça:\n--   Estoque atual (peças) = Σ quantidade_em_estoque no último retrato;\n--   Vendidas em 12 meses (peças) = Σ quantidade_vendida com data da venda nos 12 meses\n--     anteriores à data de referência da carga;\n--   Cobertura (meses) = estoque atual ÷ (vendidas em 12 meses ÷ 12).\n-- Sinal: cobertura abaixo de 3 meses = repor. Sem vendas em 12 meses: cobertura indefinida.\n-- O material entra na quebra porque o ouro não tem venda registrada e misturá-lo ao\n-- folheado do mesmo tipo inflaria a cobertura. Ordem: menor cobertura primeiro.\nWITH ref AS (\n    SELECT max(data_key) AS data_key,\n           to_date(max(data_key)::text, 'YYYYMMDD') AS data_ref\n      FROM bi.vw_fato_snapshot_estoque\n),\nestoque AS (\n    SELECT p.material, p.tipo_peca, sum(s.quantidade_em_estoque) AS pecas\n      FROM ref\n      JOIN bi.vw_fato_snapshot_estoque s ON s.data_key = ref.data_key\n      JOIN bi.vw_dim_produto p ON p.produto_key = s.produto_key\n     GROUP BY p.material, p.tipo_peca\n),\nvenda AS (\n    SELECT p.material, p.tipo_peca, sum(v.quantidade_vendida) AS pecas\n      FROM ref\n      JOIN bi.vw_fato_venda_item v\n        ON v.data_hora_venda::date >  (ref.data_ref - interval '12 months')::date\n       AND v.data_hora_venda::date <= ref.data_ref\n      JOIN bi.vw_dim_produto p ON p.produto_key = v.produto_key\n     GROUP BY p.material, p.tipo_peca\n),\nt AS (\n    SELECT COALESCE(e.material, v.material)   AS material,\n           COALESCE(e.tipo_peca, v.tipo_peca) AS tipo_peca,\n           COALESCE(e.pecas, 0)               AS estoque,\n           COALESCE(v.pecas, 0)               AS vendidas_12m,\n           CASE WHEN COALESCE(v.pecas, 0) > 0 THEN COALESCE(e.pecas, 0) / (v.pecas / 12.0) END AS cobertura\n      FROM estoque e\n      FULL JOIN venda v ON v.material = e.material AND v.tipo_peca = e.tipo_peca\n)\nSELECT material                                                    AS \"Material\",\n       tipo_peca                                                   AS \"Tipo de peça\",\n       estoque::int                                                AS \"Estoque atual\",\n       vendidas_12m::int                                           AS \"Vendidas em 12 meses\",\n       COALESCE(translate(to_char(cobertura, 'FM99990.0'), '.', ','), '—') AS \"Cobertura (meses)\",\n       CASE WHEN cobertura IS NULL THEN 'Sem vendas em 12 meses'\n            WHEN cobertura < 3     THEN 'Repor (abaixo de 3 meses)'\n            ELSE 'Cobertura de 3 meses ou mais' END                AS \"Situação (proposta)\"\n  FROM t\n WHERE estoque > 0 OR vendidas_12m > 0\n ORDER BY cobertura ASC NULLS LAST, estoque DESC, material, tipo_peca;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Situação (proposta)"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "Repor (abaixo de 3 meses)": {
+                        "color": "red",
+                        "index": 0
+                      },
+                      "Sem vendas em 12 meses": {
+                        "color": "transparent",
+                        "index": 1
+                      },
+                      "Cobertura de 3 meses ou mais": {
+                        "color": "transparent",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Estoque atual",
+            "Vendidas em 12 meses"
+          ],
+          "countRows": false,
+          "enablePagination": false
+        }
+      }
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": [
+    "nobreza",
+    "joalheria"
+  ],
+  "time": {
+    "from": "now-3y",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": true
+  },
+  "timezone": "browser",
+  "title": "Nobreza Jóias — Indicadores",
+  "uid": "nobreza-indicadores",
+  "version": 1,
+  "weekStart": ""
+}
