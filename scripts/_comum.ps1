@@ -16,7 +16,19 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Import-ArquivoEnv {
     <# Lê KEY=VALOR do .env local (sem imprimir valores) e define variáveis de ambiente do processo. #>
-    param([string]$Caminho = (Join-Path $script:RaizProjeto '.env'))
+    param([string]$Caminho)
+    if ([string]::IsNullOrWhiteSpace($Caminho)) {
+        # DW_ARQUIVO_ENV permite apontar o DW para outro servidor sem alterar o .env da raiz,
+        # que continua servindo à aplicação e ao ambiente demonstrativo.
+        if (-not [string]::IsNullOrWhiteSpace($env:DW_ARQUIVO_ENV)) {
+            $Caminho = $env:DW_ARQUIVO_ENV
+            if (-not (Test-Path -LiteralPath $Caminho -PathType Leaf)) {
+                throw "DW_ARQUIVO_ENV aponta para '$Caminho', mas o arquivo não existe. Corrija o caminho ou remova a variável para usar o .env da raiz."
+            }
+        } else {
+            $Caminho = Join-Path $script:RaizProjeto '.env'
+        }
+    }
     if (-not (Test-Path -LiteralPath $Caminho)) {
         throw "Arquivo .env não encontrado em '$Caminho'. Copie .env.example para .env e preencha localmente."
     }

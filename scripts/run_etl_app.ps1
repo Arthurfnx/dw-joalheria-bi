@@ -21,6 +21,8 @@
 #   APP_PGDATABASE                                   -> padrão: nobreza_app
 #   APP_PGUSER                                       -> padrão: nobreza_leitura_dw
 #   APP_PGPASSWORD                                   -> senha do papel de leitura
+#   APP_PGSSLMODE                                    -> padrão: prefer
+#   DW_ARQUIVO_ENV (ambiente, opcional)              -> outro arquivo .env no lugar do da raiz
 #
 # Uso: powershell -ExecutionPolicy Bypass -File scripts\run_etl_app.ps1
 # Saída: 0 = sucesso; 1 = erro; 2 = verificação de qualidade reprovada.
@@ -43,6 +45,8 @@ $origem = @{
     PGDATABASE = Get-Variavel 'APP_PGDATABASE' 'nobreza_app'
     PGUSER     = Get-Variavel 'APP_PGUSER' 'nobreza_leitura_dw'
     PGPASSWORD = Get-Variavel 'APP_PGPASSWORD' ''
+    # O DW pode exigir SSL (PGSSLMODE=require); o banco operacional local não tem SSL.
+    PGSSLMODE  = Get-Variavel 'APP_PGSSLMODE' 'prefer'
 }
 
 function Invoke-PsqlOrigem {
