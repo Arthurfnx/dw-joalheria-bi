@@ -1,4 +1,47 @@
-# Qualidade de dados e critérios de validação — ambiente demonstrativo
+# Qualidade de dados e critérios de validação
+
+Três camadas de controle na solução real: as regras da importação das planilhas, as restrições do banco operacional e as verificações do ETL. O ambiente demonstrativo, com regras próprias, está descrito na segunda metade deste documento.
+
+## Solução real
+
+### O DW real
+
+O DW real (`dw`, `bi`, `audit`) tem a mesma estrutura dimensional do ambiente demonstrativo, com as hierarquias Ano › Trimestre › Mês › Dia e Material › Tipo de peça › Produto. O grão de cada fato está em `docs/data_dictionary.md` e em `etl/sql/app/README.md`.
+
+### Regras para as inconsistências das planilhas (importação)
+
+A importação das planilhas para o banco operacional é feita uma única vez, numa única transação, e nunca altera os arquivos de origem. As regras completas estão na seção 6 de `docs/app_web/especificacao.md` (RN-90 a RN-105). Para cada inconsistência observada:
+
+| Inconsistência | Regra aplicada | Onde fica registrada |
+|---|---|---|
+| Grafias diferentes da mesma categoria (por exemplo, BRINCO, BINCO e BRNCO; maiúsculas e minúsculas misturadas no catálogo de ouro) | Normalização por uma tabela de grafias observadas; palavra fora da tabela vai para a categoria "A classificar", para revisão | Categoria "A classificar" no cadastro |
+| Códigos de produto repetidos | **Todas** as ocorrências do código são rejeitadas; o sistema não inventa código. O administrador cadastra essas peças depois, à mão | `importacao_ocorrencia` (REJEITADA) |
+| Código fora dos padrões conhecidos, ou linha de serviço | Rejeitado | `importacao_ocorrencia` (REJEITADA) |
+| Data de venda inválida | A linha vai para a lista de revisão; nenhuma data é estimada | `importacao_ocorrencia` (REVISAR) |
+| Venda de R$ 0,01 | Marcada como venda **simbólica**: conta como peça vendida, mas não entra no faturamento | `venda_historica.simbolico`; no DW, `valor_simbolico` |
+| Local do estoque: ESTOQUE, ARMÁRIO, MALETA 1, 2 MALETA, "novo" | Em estoque, com o local normalizado (Estoque, Armário, Maleta 1, Maleta 2) | Cadastro do produto |
+| Local do estoque: nome de pessoa | Peça consignada; o nome fica só no banco operacional e nunca vai ao DW | Cadastro do produto (coluna não lida pelo ETL) |
+| Local do estoque: "sumiu" | Peça perdida, saldo 0, sem movimentação (a data da perda é desconhecida) | `produto_origem` (situação PERDIDA) |
+| Local do estoque: vazio | Saldo 0, para revisão (a confirmar) | `produto_origem` (situação REVISAR) |
+| Data de venda preenchida com local diferente de VENDIDO | A venda prevalece; a divergência fica registrada | `importacao_ocorrencia` (REVISAR) |
+| Tamanho informado em categoria que não usa tamanho | O valor é guardado como original e não vai para o tamanho do produto | `produto_origem.tamanho_original` e `importacao_ocorrencia` (REVISAR) |
+| Nome do cliente | Nunca é importado | — |
+
+Cada lote de importação (`importacao_lote`) guarda as contagens por aba (lidas, importadas, vendas históricas e rejeitadas), e o critério de aceite é lidas = importadas + rejeitadas. As ocorrências guardam aba, linha, motivo e código, sem descrição nem nome de pessoa.
+
+### Restrições do banco operacional
+
+As regras de estoque valem no próprio banco (invariantes I1 a I10 de `docs/app_web/especificacao.md`): saldo nunca negativo; saldo = Σ (quantidade × sinal) das movimentações; movimentações imutáveis; saída não comercial nunca gera faturamento; confirmação de venda idempotente. Os 214 testes automatizados da aplicação passam, incluindo os invariantes testados no PostgreSQL.
+
+### Verificações do ETL
+
+- Registros inválidos do staging vão para `audit.rejeicao`, com o motivo e o id técnico de origem (nunca texto livre nem nome de pessoa). Nada é descartado em silêncio.
+- Ao fim de cada carga, 14 verificações são gravadas em `audit.resultado_validacao`; qualquer reprovação encerra a execução como FALHA. A lista e a evidência da execução no Azure (14 de 14, 0 rejeições) estão em `docs/etl_runbook.md`.
+
+---
+
+# Ambiente demonstrativo (histórico)
+
 
 **Status:** implementado e executado no banco (execuções 2 e 3: 24/24 verificações aprovadas, 0 rejeições). Os critérios estão em dois lugares:
 - `etl/sql/demo/40_verificacoes_qualidade.sql`: função `audit_demo.executar_verificacoes(id)`, com 24 verificações gravadas em `audit_demo.resultado_validacao` a cada execução;

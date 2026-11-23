@@ -1,9 +1,11 @@
 # Registro de decisões
 
+As decisões D-001 a D-049 são da fase 1 (ambiente demonstrativo) e ficam como registro histórico; algumas foram substituídas pelas decisões da solução real, indicadas na coluna Status. As decisões D-050 em diante são da solução real.
+
 | ID | Decisão/declaração | Origem | Status | Consequência |
 |---|---|---|---|---|
 | D-001 | PostgreSQL será o banco do Data Warehouse | Requisito acadêmico | Definido | Usa-se o PostgreSQL 18.6 local, já instalado |
-| D-002 | Power BI é a ferramenta obrigatória de relatórios | Requisito acadêmico | Definido | O DW disponibiliza views em `bi_demo` |
+| D-002 | Power BI é a ferramenta obrigatória de relatórios | Requisito acadêmico | Definido na fase 1; **substituído na solução real por D-053 e D-054** | O DW disponibiliza views em `bi_demo` |
 | D-003 | Docker não será usado | Usuário | Definido | Instalação local |
 | D-004 | Produtos e estoque têm fonte XLSX | Usuário | **Confirmado por inspeção** (2026-10-31) | Ver `docs/source_inventory.md` |
 | D-005 | Fontes de compras e vendas existem | Usuário | **Revisado:** não há arquivos separados; compras e vendas aparecem como colunas da aba FOLHEADOS | Considerar na fase 2 |
@@ -51,3 +53,16 @@
 | D-047 | Perfil `bi_leitura` (somente leitura em `bi_demo`) criado por `db/seguranca/bi_leitura.sql`, fora de `run_migrations.ps1`; ETL e conferências usam `postgres` | Implementação (aplicado em sessão anterior; perfil conferido em 2026-11-01) | Definido. **Pendente de confirmação:** qual usuário está gravado nas credenciais do Power BI Desktop | Aceitável apenas no ambiente demonstrativo local |
 | D-048 | O PBIP/PBIR e o TMDL são a fonte da verdade do relatório; `powerbi/measures.dax` é exportado do TMDL; os geradores em `tools/powerbi/` são versionados como registro histórico, não como processo de build | Consolidação técnica (2026-11-01) | Definido | Documentação deriva dos arquivos do PBIP, não do plano original |
 | D-049 | A página vazia "Página 1" é auxiliar, não faz parte das seis páginas principais e foi preservada | Usuário (2026-11-01) | Definido. **Pendente de confirmação:** removê-la ou ocultá-la | Nenhuma |
+
+## Solução real (fase 2)
+
+| ID | Data | Decisão | Origem | Motivo | Consequência |
+|---|---|---|---|---|---|
+| D-050 | 2026-11-10 | A aplicação web de produtos, estoque e vendas entra no escopo, em Next.js com PostgreSQL, com banco operacional próprio (`nobreza_app`), separado do DW | Usuário | O documento acadêmico propõe o sistema ao cliente; a aplicação passa a ser a fonte oficial dos dados operacionais | O DW é alimentado só por ETL a partir do banco operacional |
+| D-051 | 2026-11-21 | A aplicação trabalha com os **dados reais** das planilhas, importados uma única vez (cadastro das peças, saldo e histórico de vendas, sem número de venda e sem nome de cliente); o DW real (`staging`, `dw`, `bi`, `audit`) é criado, separado dos esquemas `*_demo` | Usuário | A entrega final deve mostrar a situação real da joalheria, não uma simulação | Nenhuma tela nem código de servidor usa dado sintético; o ambiente demonstrativo fica preservado como histórico. Regras da importação em `docs/data_quality.md` |
+| D-052 | 2026-11-22 | Sistema e DW hospedados no Microsoft Azure, região Brasil Sul: App Service (Linux, Node 22, plano B1) e Azure Database for PostgreSQL, servidor flexível B1ms, PostgreSQL 18.6, backup automático de 7 dias, com os bancos `nobreza_app` e `dw_joalheria`; firewall só para os serviços do Azure, a máquina de administração e o Grafana Cloud | Usuário | Acesso pela internet (não só na máquina local), banco com backup e mesma versão do PostgreSQL usada no desenvolvimento | Papéis com o mínimo de privilégios (ver `docs/architecture.md`); senhas só em arquivos locais ignorados pelo Git e nas configurações do App Service |
+| D-053 | 2026-11-22 | **Power BI descartado** na solução real | Usuário | Publicar e compartilhar exige licença Pro ou PPU; o "Publicar na Web" está bloqueado pelo administrador do locatário da universidade; a licença seria custo mensal para o cliente | O relatório `powerbi/relatorio_joalheria.*` fica no repositório como histórico, não mantido. O relatório demonstrativo da fase 1 não muda |
+| D-054 | 2026-11-22 | Indicadores no **Grafana Cloud** (plano gratuito: painel público por link e painel com filtros para até 3 usuários com login) e nos **gráficos da tela Relatórios** do sistema, com as mesmas 7 seções lidas do esquema `bi` pelo papel `bi_leitura` | Usuário | Ferramenta gratuita, que lê o PostgreSQL diretamente; os gráficos no sistema não dependem de serviço externo. O Grafana Cloud não aceita ser exibido em quadro | A tela Relatórios mostra um botão "Abrir o painel" e, abaixo, os gráficos com filtros de Material, Tipo de peça e Ano. Variáveis `PAINEL_URL` e `DW_DATABASE_URL` |
+| D-055 | 2026-11-22 | **Número de vendas, ticket médio e associação entre produtos retirados dos painéis** | Usuário | Exigem identificador de transação. As vendas históricas das planilhas não têm número de venda, e ainda não há vendas registradas no sistema no DW | As views `bi.vw_associacao_*` continuam no DW, só com vendas do sistema; os indicadores podem voltar quando houver vendas suficientes registradas no sistema. Ver `docs/indicator_catalog.md` |
+| D-056 | 2026-11-22 | Tela Indicadores com 3 indicadores (vendas por mês, estoque por categoria, estoque por material) lidos do banco operacional, com escolha do formato e o formato recomendado | Usuário | Visão rápida dentro do sistema, sem depender do ETL | Regras RN-110 a RN-115 em `docs/app_web/especificacao.md` |
+| D-057 | 2026-11-22 | Reposição exibida como **proposta**: cobertura menor que 3 meses = repor | Proposta técnica | O proprietário ainda não definiu a regra | Marcada "(a confirmar com o proprietário)" em todos os painéis |

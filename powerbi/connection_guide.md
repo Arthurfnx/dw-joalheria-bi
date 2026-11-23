@@ -1,5 +1,7 @@
 # Guia de conexão do Power BI ao DW demonstrativo
 
+> **Nota (2026-11-22):** o relatório Power BI da solução real (`powerbi/relatorio_joalheria.*`) foi **descontinuado** e fica no repositório só como histórico, sem manutenção. Motivos: publicar e compartilhar exige licença Pro ou PPU; o "Publicar na Web" está bloqueado pelo administrador do locatário da universidade; e a licença seria custo para o cliente. Os indicadores reais estão na tela Relatórios do sistema e no Grafana Cloud (ver `docs/architecture.md` e `tools/grafana/README.md`). A primeira parte deste guia trata do relatório **demonstrativo** da fase 1, que continua como estava; a seção "Relatório real", no fim, é registro histórico.
+
 > **AMBIENTE DEMONSTRATIVO — DADOS SINTÉTICOS, NÃO REPRESENTAM RESULTADOS REAIS DA EMPRESA.**
 
 **Status (2026-11-01):** conexão configurada e em uso no PBIP `powerbi/relatorio_joalheria_demo.pbip`; as 12 views foram importadas e os indicadores conferidos contra o SQL (`powerbi/validation_checklist.md`).
@@ -47,7 +49,7 @@ Hoje, trocar de servidor, banco ou esquema exige editar as 12 consultas. Uma mel
 
 # Relatório real (`powerbi/relatorio_joalheria.pbip`) — DW real, esquema `bi`
 
-**Status (2026-11-22):** cópia do relatório demonstrativo ligada ao esquema `bi` do DW real, que recebe os dados do banco operacional `nobreza_app` (aplicação web). O relatório demonstrativo acima não foi alterado. Este relatório é publicado por "Publicar na Web" (link público): o DW e o modelo **não contêm nomes de pessoas** (clientes nem a pessoa com quem uma peça está consignada); valores de custo podem ser publicados (decisões do usuário de 2026-11-21).
+**Status: descontinuado em 2026-11-22 (ver a nota no topo); registro histórico.** Cópia do relatório demonstrativo ligada ao esquema `bi` do DW real, que recebe os dados do banco operacional `nobreza_app` (aplicação web). O relatório demonstrativo acima não foi alterado. A publicação prevista era por "Publicar na Web" (link público), que acabou bloqueada no locatário da universidade. Como o link seria público, o DW e o modelo **não contêm nomes de pessoas** (clientes nem a pessoa com quem uma peça está consignada); valores de custo podem ser publicados (decisões do usuário de 2026-11-21).
 
 ## Pré-requisitos
 

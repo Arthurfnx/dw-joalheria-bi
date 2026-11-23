@@ -1,6 +1,81 @@
 # Arquitetura
 
-**Status:** aprovada para a fase 1 (demonstrativa) em 2026-10-31; **implementada e executada** em 2026-10-31 e 2026-11-01 (banco `dw_joalheria`, 21 migrations, ETL com 24/24 verificações aprovadas, relatório Power BI com 6 páginas).
+O projeto tem duas partes separadas:
+
+- **Solução real** (fase 2): aplicação web, banco operacional, ETL, Data Warehouse e painéis, hospedados no Microsoft Azure, com os dados reais da joalheria. Descrita a seguir.
+- **Ambiente demonstrativo** (fase 1, histórico): DW com dados sintéticos e relatório Power BI, executados localmente em 2026-10-31 e 2026-11-01. Descrito na segunda metade deste documento e mantido sem alteração.
+
+## Solução real (fase 2)
+
+### Fluxo
+
+```
+Planilhas da joalheria ──(importação única, npm run importar:planilhas)──► nobreza_app
+Navegador ──► aplicação web (Next.js) ──► nobreza_app (esquema app)
+nobreza_app ──ETL (scripts/run_etl_app.ps1, papel nobreza_leitura_dw)──► dw_joalheria
+dw_joalheria: staging ─► dw (estrela) ─► bi (12 views)      audit: execuções, etapas, rejeições, verificações
+bi ──papel bi_leitura──► tela Relatórios do sistema (7 seções, com filtros)
+bi ──papel bi_leitura──► Grafana Cloud (as mesmas 7 seções: painel público e painel completo com login)
+nobreza_app ──► tela Indicadores do sistema (3 indicadores, com escolha do formato)
+```
+
+### Hospedagem (Microsoft Azure, região Brasil Sul)
+
+| Recurso | Configuração | Conteúdo |
+|---|---|---|
+| Azure App Service | Linux, Node 22, plano B1 | Aplicação web Next.js, em `https://nobreza-joias-ctckede5c0fsf5fu.brazilsouth-01.azurewebsites.net` |
+| Azure Database for PostgreSQL, servidor flexível | `nobreza-dw.postgres.database.azure.com`, PostgreSQL 18.6, camada B1ms, backup automático com retenção de 7 dias | Bancos `nobreza_app` (operacional) e `dw_joalheria` (Data Warehouse) |
+| Grafana Cloud (plano gratuito, fora do Azure) | Fonte de dados PostgreSQL com SSL `require` | Painel público por link e painel completo com login de Viewer |
+
+**Firewall do servidor de banco:** só aceita conexões dos serviços do Azure (a aplicação), da máquina de administração (migrations e ETL) e dos endereços de saída do Grafana Cloud. As conexões usam SSL.
+
+### Papéis do banco
+
+| Banco | Papel | Uso | Privilégios |
+|---|---|---|---|
+| `nobreza_app` | `nobreza_migracao` | Migrations da aplicação | Dono do esquema `app` |
+| `nobreza_app` | `nobreza_aplicacao` | Aplicação em execução | Sem escrita direta em vendas, itens, movimentações e saldos: só pelas funções de estoque |
+| `nobreza_app` | `nobreza_leitura_dw` | Origem do ETL | Só leitura; não enxerga `consignado_com`, `local_original` nem as tabelas de usuário, sessão e auditoria (nenhum nome de pessoa sai do banco operacional) |
+| `dw_joalheria` | `dw_carga` | Dono dos esquemas reais; migrations e carga do ETL | Escrita em `staging`, `dw`, `bi` e `audit` |
+| `dw_joalheria` | `bi_leitura` | Tela Relatórios e Grafana | Só SELECT nas views do esquema `bi` |
+
+As senhas ficam fora do repositório: nos arquivos locais `.env.dw_azure` (ETL) e `.env.app_azure` (aplicação), ambos ignorados pelo Git, e nas configurações do App Service.
+
+### Atualização dos dados
+
+- A aplicação grava no banco operacional no ato de cada operação.
+- O DW é atualizado pela execução do ETL, por recarga completa, a partir da máquina de administração: `$env:DW_ARQUIVO_ENV='<caminho do .env.dw_azure>'; scripts\run_etl_app.ps1`. Cada execução fica registrada em `audit` (ver `docs/etl_runbook.md`).
+- A tela Relatórios e o Grafana leem o DW no momento da consulta e mostram o estado da última carga, com a data de referência no cabeçalho. Dados novos da aplicação só aparecem nos painéis depois do ETL.
+- A tela Indicadores lê o banco operacional e já mostra as operações registradas.
+
+### Ferramenta de análise: Power BI → Grafana e gráficos no sistema
+
+O relatório da solução real foi construído primeiro no Power BI (`powerbi/relatorio_joalheria.*`), sobre o esquema `bi`. Ele foi descartado como entrega, por três motivos:
+
+1. **Licença:** publicar e compartilhar um relatório no serviço do Power BI exige licença Pro ou Premium por usuário (PPU).
+2. **Bloqueio institucional:** o "Publicar na Web" (link público, que dispensaria licença para quem vê) está desativado pelo administrador do locatário da universidade.
+3. **Custo para o cliente:** manter o relatório exigiria assinaturas pagas pela joalheria.
+
+Substituto:
+
+- **Grafana Cloud, plano gratuito:** lê o DW diretamente, tem painel público por link (sem login) e até 3 usuários ativos com login, o que atende ao proprietário e ao funcionário. Não aceita ser exibido em quadro (`frame-ancestors 'none'`), por isso o sistema abre o painel por um botão.
+- **Gráficos na tela Relatórios do sistema:** as mesmas 7 seções, lidas do DW pelo papel `bi_leitura` (variável `DW_DATABASE_URL`), com filtros de Material, Tipo de peça e Ano, sem depender de serviço externo.
+
+O relatório Power BI real fica no repositório como histórico e não é mantido. O relatório demonstrativo da fase 1 continua como estava.
+
+### Decisões de arquitetura (solução real)
+
+- **Banco operacional separado do DW:** nenhum código da aplicação grava em `dw_joalheria`; a tela Relatórios só lê as views `bi`, e a carga do DW é feita só pelo ETL.
+- **Esquemas reais separados da demonstração:** `staging`, `dw`, `bi` e `audit` não leem nem alteram os esquemas `*_demo`.
+- **ETL em SQL com PowerShell + `psql`**, sem ferramenta externa de orquestração: não há necessidade técnica demonstrada.
+- **Recarga completa** a cada execução em `staging`, `dw` e `bi`; `audit` só recebe inserções.
+- **Mesmo modelo dimensional da fase 1** e as mesmas views de consumo, o que permitiu reaproveitar consultas e regras.
+
+---
+
+# Ambiente demonstrativo (fase 1, histórico)
+
+**Status:** aprovada em 2026-10-31; **implementada e executada** em 2026-10-31 e 2026-11-01 (banco `dw_joalheria` local, 21 migrations, ETL com 24/24 verificações aprovadas, relatório Power BI). O relatório demonstrativo tem 7 páginas funcionais e 61 medidas.
 
 ## Fluxo lógico — fase 1 (dados sintéticos)
 
@@ -46,16 +121,16 @@ audit_demo    execuções, etapas, contagens, rejeições e resultados de valida
 
 ## Separação entre demo e ambiente real
 
-| Aspecto | Fase 1 (demo) | Fase 2 (real, futura) |
+| Aspecto | Fase 1 (demo) | Fase 2 (real) |
 |---|---|---|
-| Esquemas | `config_demo`, `staging_demo`, `dw_demo`, `bi_demo`, `audit_demo` | esquemas próprios (por exemplo, `staging`, `dw`, `bi`, `audit`), **não criados agora** |
-| Origem | gerador sintético | XLSX reais (Python → staging) e, futuramente, sistema operacional |
-| Marcação | `origem_dado = 'SINTETICO_DEMO'` | identificação da fonte real |
-| Power BI | conexão fixa em `localhost:5432`, banco `dw_joalheria`, esquema `bi_demo`; aviso fixo em todas as páginas | a definir |
+| Esquemas | `config_demo`, `staging_demo`, `dw_demo`, `bi_demo`, `audit_demo` | `staging`, `dw`, `bi`, `audit`, criados em 2026-11-21 |
+| Origem | gerador sintético | banco operacional da aplicação (`nobreza_app`), que recebeu as planilhas por importação única |
+| Marcação | `origem_dado = 'SINTETICO_DEMO'` | `origem_dado` = `PLANILHA` (importado) ou `APLICACAO` (registrado no sistema) |
+| Apresentação | Power BI com conexão fixa em `localhost:5432`, banco `dw_joalheria`, esquema `bi_demo`; aviso fixo em todas as páginas | tela Relatórios do sistema e Grafana Cloud, sobre o esquema `bi` no Azure |
 
 As views reais futuras devem manter os mesmos nomes de colunas das views demo. **Implementado:** as 12 consultas M usam valores fixos (`PostgreSQL.Database("localhost:5432", "dw_joalheria")` e o esquema `bi_demo`), sem parâmetro. **Melhoria futura (não implementada):** parametrizar servidor, banco e esquema para trocar de ambiente sem editar as consultas. Dados demo e reais nunca são unidos.
 
-**Verificado em 2026-11-01:** os esquemas reais `staging`, `dw`, `bi` e `audit` não existem no banco.
+Em 2026-11-01 os esquemas reais ainda não existiam; foram criados em 2026-11-21 para a solução real.
 
 ## Usuários do banco
 
@@ -66,4 +141,4 @@ As views reais futuras devem manter os mesmos nomes de colunas das views demo. *
 
 ## Fora do escopo
 
-Sistema web transacional, pagamentos, financeiro, fornecedores, logística, frete, e-commerce, clientes, previsão de demanda, margem bruta, estoque valorizado e giro por custo.
+Na fase 1, o sistema web transacional (entrou no escopo em 2026-11-10). Nas duas fases: pagamentos, financeiro, fornecedores, logística, frete, e-commerce, clientes, previsão de demanda, margem bruta, estoque valorizado e giro por custo.

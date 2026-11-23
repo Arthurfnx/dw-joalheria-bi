@@ -1,4 +1,40 @@
-# Dicionário de dados — ambiente demonstrativo (`dw_demo`)
+# Dicionário de dados
+
+## DW real (`dw`, `bi`, `audit`)
+
+O Data Warehouse real, no banco `dw_joalheria` do Azure, tem a **mesma estrutura dimensional** do ambiente demonstrativo descrito abaixo (as mesmas dimensões, os mesmos fatos e views de consumo com os mesmos nomes no esquema `bi`). A estrutura está em `db/migrations/real/` e `db/views/real/bi_views.sql`; a carga e o mapeamento em `etl/sql/app/README.md`.
+
+**Hierarquias usadas nos painéis:**
+
+- Tempo: **Ano › Trimestre › Mês › Dia** (`dim_data`).
+- Produto: **Material › Tipo de peça › Produto** (`dim_produto`; tipo de peça = categoria do cadastro da aplicação).
+
+**Grão de cada tabela:**
+
+| Tabela | Grão (uma linha é…) | Origem |
+|---|---|---|
+| `dw.dim_produto` | um produto do cadastro da aplicação (`produto_key` = id da aplicação) | `app.produto` e domínios |
+| `dw.dim_data` | um dia, da data mais antiga dos fatos até a data de referência da carga | calendário gerado |
+| `dw.dim_tipo_movimentacao` | um tipo de movimentação, com o sinal (+1/−1) | `app.tipo_movimentacao` |
+| `dw.parametro_preco_ouro` | uma versão do preço do ouro por data de vigência; só a última de cada data é vigente | `app.preco_ouro` |
+| `dw.fato_venda_item` | um produto vendido. Origem APLICACAO: item de venda confirmada, com `id_venda` = número emitido pelo sistema. Origem PLANILHA: venda histórica importada, sem identificador de venda | `app.venda_item` + `app.venda`; `app.venda_historica` |
+| `dw.fato_compra_item` | a aquisição de uma peça (produto com data de aquisição), quantidade 1, custo = valor de aquisição; sem identificador de compra | `app.produto` |
+| `dw.fato_movimentacao_estoque` | uma movimentação de estoque (data da ocorrência, sem hora) | `app.movimentacao_estoque` |
+| `dw.fato_snapshot_estoque` | produto × dia, da data da importação até a data de referência da carga; nada antes da importação | saldos derivados das movimentações |
+| `dw.controle_carga` | linha única: execução, instante da extração, data de referência e início dos retratos | ETL |
+
+**Diferenças em relação ao ambiente demonstrativo:**
+
+- `origem_dado` vale `PLANILHA` (importado das planilhas) ou `APLICACAO` (registrado no sistema), nunca `SINTETICO_DEMO`.
+- `dim_produto` traz também subcategoria, modo de controle, local do estoque (o local "Consignado" aparece **sem** o nome da pessoa), situação ativa, preço de venda, preço sugerido atual (regra RN-68), valor e data de aquisição. Índice de preço, peso, valor e data de aquisição podem estar vazios.
+- `fato_venda_item` tem `valor_simbolico` (venda de R$ 0,01), `entra_faturamento` e `valor_faturado`: vendas simbólicas e sem valor contam em `quantidade_vendida`, mas não em `valor_faturado`.
+- Nenhuma tabela ou view do DW real tem nome de pessoa (verificação PRV-01).
+
+`audit` guarda as execuções, as etapas (lidas, carregadas e rejeitadas por tabela), as rejeições e os resultados das 14 verificações (ver `docs/etl_runbook.md`).
+
+---
+
+# Ambiente demonstrativo (`dw_demo`, histórico)
 
 **Status:** implementado em `db/migrations/005`–`007` e aplicado ao banco `dw_joalheria` em 2026-10-31. Qualquer divergência deve ser corrigida aqui junto com o SQL.
 

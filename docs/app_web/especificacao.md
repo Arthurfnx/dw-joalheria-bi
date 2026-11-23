@@ -18,10 +18,10 @@ Decisões técnicas que orientam a implementação.
 | E4 | O desconto não é armazenado: é a diferença entre o preço de tabela e o preço praticado do item. Desconto sobre o total da venda fica fora | Evita dois campos que podem divergir |
 | E5 | A confirmação de compra dispensa chave de idempotência: a passagem de RASCUNHO para CONFIRMADA, feita com bloqueio da linha, já impede a confirmação dupla. A chave continua obrigatória na venda | Refina o invariante I9 |
 | E7 | Forma de pagamento, agrupamento por modelo, fotos e clientes ficam fora. Locais de estoque entram só como atributo do produto, para a consignação (seção 6). O preço do ouro entra (3.7A) | Dependem de definições do proprietário |
-| E8 | O nome da pessoa com quem a peça está consignada é guardado na aplicação, mas nunca sai dela: o papel de leitura do DW não enxerga essa coluna (seção 6A) | O relatório do Power BI é público |
+| E8 | O nome da pessoa com quem a peça está consignada é guardado na aplicação, mas nunca sai dela: o papel de leitura do DW não enxerga essa coluna (seção 6A) | O painel de indicadores do Grafana é público |
 | E9 | A importação lê o XLSX em Node.js, com a biblioteca ExcelJS, dentro de `web/`, e não em Python | Um único projeto e uma única sessão de código; o prazo não comporta uma segunda cadeia de ferramentas |
-| E10 | Compras e consultas operacionais ficam para uma versão posterior. As consultas são cobertas pelo relatório do Power BI | Escopo da primeira versão |
-| E11 | O catálogo de ouro (CLS) é importado com todas as peças em estoque, saldo 1, sem valor nem data de aquisição; o tamanho só existe em anéis; cada peça tem índice de preço; o preço do ouro é registrado pelo cliente e gera preço sugerido; associação e ticket médio ficam no relatório, só com vendas da aplicação | Regras de negócio da joalheria |
+| E10 | Compras e consultas operacionais ficam para uma versão posterior. As consultas são cobertas pelos painéis de indicadores (seção 3.8) | Escopo da primeira versão |
+| E11 | O catálogo de ouro (CLS) é importado com todas as peças em estoque, saldo 1, sem valor nem data de aquisição; o tamanho só existe em anéis; cada peça tem índice de preço; o preço do ouro é registrado pelo cliente e gera preço sugerido; associação e ticket médio só valem com vendas da aplicação e estão fora dos painéis enquanto não houver essas vendas (3.8) | Regras de negócio da joalheria |
 
 ## 1A. Invariantes de estoque e venda
 
@@ -54,7 +54,8 @@ Dois perfis: **Administrador** e **Vendedor**. A permissão é verificada na cam
 | Saída não comercial e ajuste | Sim | Não |
 | Compras (rascunho, confirmação, cancelamento, consulta) | Sim | Não |
 | Consultas operacionais (parados, mais vendidos, sem estoque) | Sim | Sim, sem valores de custo |
-| Relatórios do Power BI | Sim | Não (a confirmar) |
+| Relatórios (painel e gráficos do DW) | Sim | Não (a confirmar) |
+| Indicadores | Sim | Sim |
 | Materiais, categorias e subcategorias | Sim | Não |
 | Usuários e configurações | Sim | Não |
 
@@ -145,20 +146,41 @@ Cada regra tem um identificador. Os critérios de aceite (CA) viram testes nas t
 - **RN-68 Preço sugerido.** Para peça de material Ouro com índice de preço informado e preço do ouro vigente: preço sugerido = preço do ouro × fator × índice, arredondado em centavos. O fator fica na configuração `fator_preco_ouro`, com valor inicial 1,6. A fórmula ainda não foi confirmada com o proprietário (a confirmar). Sem algum dos três valores, não há preço sugerido e a tela diz o que falta.
 - **RN-69 Uso.** O preço sugerido aparece na lista e no detalhe do produto e é o preço de tabela padrão na nova venda quando o produto não tem preço de venda cadastrado. O preço praticado continua editável. O cálculo é uma função do banco, usada pela aplicação e pelo DW.
 
-### 3.8 Relatórios do Power BI
+### 3.8 Relatórios
 
-- **RN-70** A tela Relatórios exibe, num quadro, o relatório publicado. O endereço vem da variável de ambiente `POWERBI_URL_RELATORIO`; sem ela, a tela explica que o relatório não está configurado.
-- **RN-73 Associação e ticket médio.** O relatório mantém a página de associação entre produtos e o ticket médio, calculados **somente** com as vendas registradas na aplicação, que têm número de venda. As vendas importadas da planilha ficam fora desses cálculos. No começo a página fica vazia e se preenche à medida que o cliente registra vendas.
-- **RN-72** O endereço só é enviado ao navegador de quem tem permissão para a tela. Isso não torna o relatório privado: o link do "Publicar na Web" é público por natureza. Por isso o modelo publicado não contém nomes de pessoas (seção 6A e tarefa do DW).
+- **RN-70 Painel e gráficos.** A tela Relatórios tem duas partes:
+  - um cartão com o botão "Abrir o painel", que abre em nova aba o painel público do Grafana Cloud. O endereço vem da variável de ambiente `PAINEL_URL`; sem ela, a tela explica que o painel não está configurado. O Grafana Cloud não aceita ser exibido em quadro (`frame-ancestors 'none'`), por isso o painel abre por botão;
+  - a seção "Gráficos e filtros", com as 7 seções de indicadores lidas do DW (views do esquema `bi`) pela variável `DW_DATABASE_URL`, com o papel `bi_leitura`, e filtros de Material, Tipo de peça e Ano. Sem a variável, ou se o DW não responder, a seção informa que os gráficos estão indisponíveis.
+- **RN-71 Seções.** Vendas por período; tipos vendidos; taxa de venda e tempo até a venda; produtos parados, os mais antigos primeiro; tipo que mais fica parado; sazonalidade; reposição (proposta, a confirmar com o proprietário). Fórmulas, unidades e limitações em `docs/indicator_catalog.md`. Os dados são os da última carga do DW, com a data de referência no cabeçalho.
+- **RN-73 Associação e ticket médio.** Número de vendas, ticket médio e associação entre produtos só valem com as vendas registradas na aplicação, que têm número de venda; as vendas importadas da planilha ficam fora. Enquanto não houver vendas da aplicação no DW, esses indicadores ficam fora dos painéis.
+- **RN-72** O endereço do painel só é enviado ao navegador de quem tem permissão para a tela. Isso não torna o painel privado: o link público do Grafana é aberto a quem o tiver. Por isso nenhuma view do esquema `bi` contém nomes de pessoas (seção 6A).
 
 ### 3.9 Auditoria
 
 - **RN-80** São registrados: login com sucesso e com falha, saída, criação e alteração de usuário, redefinição de senha, alteração de cadastros de domínio, de produto e de configuração. As operações de estoque já deixam o seu próprio registro imutável.
 - **RN-81** O registro guarda quem, quando, a ação, a entidade e os valores de antes e depois, sem senha nem hash. Só o administrador consulta.
 
+### 3.10 Indicadores e escolha do formato de visualização
+
+A aplicação oferece os principais indicadores em mais de um formato de apresentação e ajuda o usuário a escolher o mais adequado ao tipo de dado. A tela Relatórios (3.8) é a análise completa, sobre o DW; esta tela é a visão rápida, sobre o banco operacional.
+
+- **RN-110 Indicadores.** A tela Indicadores mostra três indicadores, todos com os dados do banco operacional:
+
+| Indicador | Medida | Unidade | Formatos | Recomendado |
+|---|---|---|---|---|
+| Vendas por mês | Quantidade de peças vendidas **ou** valor vendido, escolhido pelo usuário | peças ou R$ | Linha, Barras, Tabela | Linha |
+| Estoque por categoria | Soma dos saldos dos produtos ativos | peças | Barras, Rosca, Tabela | Barras (com mais de 5 categorias); Rosca (com até 5) |
+| Estoque por material | Soma dos saldos dos produtos ativos | peças | Rosca, Barras, Tabela, Cartões | Rosca (com até 5 materiais); Barras (com mais de 5) |
+
+- **RN-111 Recomendação.** Cada indicador abre no formato recomendado, marcado como "Recomendado" no seletor, com uma frase curta do motivo: série no tempo → linha, porque mostra a tendência; comparação entre muitas categorias → barras ordenadas, porque facilita comparar tamanhos; composição de poucas partes → rosca, porque mostra a participação de cada parte no todo; valores exatos → tabela. A regra é uma função única, testada, que recebe o tipo do dado e a quantidade de itens.
+- **RN-112 Escolha do usuário.** O usuário troca o formato de cada indicador a qualquer momento. A tabela está sempre disponível. A escolha vale para a tela aberta; recarregar volta ao recomendado.
+- **RN-113 Vendas por mês.** Junta as vendas registradas na aplicação (confirmadas; canceladas não entram) e o histórico de vendas importado das planilhas, separados por origem na tabela e somados no gráfico. Vendas de valor simbólico e vendas sem valor contam na quantidade, mas não no valor. O período padrão são os últimos 24 meses, com meses sem venda exibidos como zero.
+- **RN-114 Unidades.** Peças e reais nunca aparecem no mesmo gráfico nem no mesmo eixo. Peso não entra em nenhum indicador.
+- **RN-115 Acesso e acessibilidade.** Administrador e Vendedor veem a tela; nenhum indicador mostra custo. Cada gráfico tem título, legenda e descrição acessível, e a tabela é a alternativa textual. A tela funciona a 360 px sem rolagem horizontal.
+
 ## 4. Modelo lógico
 
-Banco `nobreza_app` (dados reais) e `nobreza_app_teste` (testes), ambos no PostgreSQL 18 local, separados de `dw_joalheria`. Um único esquema, `app`.
+Banco `nobreza_app` (dados reais) e `nobreza_app_teste` (testes), separados de `dw_joalheria`. No desenvolvimento, os dois ficam no PostgreSQL 18 local; em produção, `nobreza_app` fica no Azure Database for PostgreSQL (servidor flexível, PostgreSQL 18.6), junto com `dw_joalheria`, e a aplicação no Azure App Service (ver `docs/architecture.md`). Um único esquema, `app`.
 
 ### 4.1 Papéis de banco
 
@@ -410,7 +432,7 @@ Erros de negócio são sinalizados com códigos próprios, que a camada de servi
 | `dias_produto_parado` | 180 (a confirmar) | RN-61 |
 | `fator_preco_ouro` | 1,6 (a confirmar) | RN-68 |
 
-Variáveis de ambiente (nunca versionadas com valor): `DATABASE_URL` (papel da aplicação), `DATABASE_URL_MIGRACAO`, `DATABASE_URL_TESTE`, `DATABASE_URL_TESTE_MIGRACAO` e `POWERBI_URL_RELATORIO`.
+Variáveis de ambiente (nunca versionadas com valor): `DATABASE_URL` (papel da aplicação), `DATABASE_URL_MIGRACAO`, `DATABASE_URL_TESTE`, `DATABASE_URL_TESTE_MIGRACAO` `DATABASE_URL_LEITURA_DW` (papel de leitura do ETL), `PAINEL_URL` (link público do painel do Grafana) e `DW_DATABASE_URL` (leitura do DW com o papel `bi_leitura`, para os gráficos da tela Relatórios).
 
 ## 5. Telas e navegação
 
@@ -419,7 +441,8 @@ Interface em português do Brasil, valores em reais e datas no formato dia/mês/
 | `/login` | Login | Login, senha, mensagem de erro única | Implementada |
 | `/trocar-senha` | Troca de senha | Senha atual, nova e confirmação; obrigatória no primeiro acesso | Implementada |
 | `/` | Início | Atalhos e totais de vendas do dia e do mês (RN-64) | Implementada |
-| `/relatorios` | Relatórios | O quadro com o relatório | Implementada |
+| `/relatorios` | Relatórios | Botão "Abrir o painel" (Grafana) e gráficos do DW com filtros de Material, Tipo de peça e Ano (3.8) | Implementada |
+| `/indicadores` | Indicadores | Vendas por mês, estoque por categoria e por material, com seletor de formato e formato recomendado (3.10) | Implementada |
 | `/admin/usuarios` | Usuários | Lista, criar, editar, desativar, redefinir senha | Implementada |
 | `/admin/cadastros` | Cadastros | Materiais, categorias e subcategorias | Implementada |
 | `/admin/configuracoes` | Configurações | Parâmetros de 4.5 | Implementada |
@@ -550,7 +573,7 @@ O comando `npm run importar:planilhas -- <caminho do XLSX>` lê o arquivo com a 
 
 ## 6A. Papel de leitura para o DW
 
-Papel `nobreza_leitura_dw`, somente SELECT nas tabelas de `app` e EXECUTE em `app.preco_sugerido`, **exceto** as colunas `consignado_com` e `local_original` e as tabelas de usuário, sessão e auditoria. É usado pelo ETL do DW real. A exclusão por coluna garante que nenhum nome de pessoa chega ao relatório público.
+Papel `nobreza_leitura_dw`, somente SELECT nas tabelas de `app` e EXECUTE em `app.preco_sugerido`, **exceto** as colunas `consignado_com` e `local_original` e as tabelas de usuário, sessão e auditoria. É usado pelo ETL do DW real. A exclusão por coluna garante que nenhum nome de pessoa chega ao DW nem ao painel público.
 
 ## 7. Testes
 
@@ -564,4 +587,4 @@ Os dados dos testes são inventados e criados pelo próprio teste ("dados de tes
 
 ## 8. Fora do escopo
 
-Clientes, fornecedores, financeiro, fotos, comprovantes, exportação, recuperação de senha por e-mail, transferência entre locais como movimentação, preço por índice, agrupamento por modelo, forma de pagamento, desconto sobre o total, devolução e troca, cancelamento parcial, gestão de tipos de movimentação pela interface, exclusão física, modo offline e hospedagem. Na primeira versão também ficam fora as compras e as consultas operacionais (E10).
+Clientes, fornecedores, financeiro, fotos, comprovantes, exportação, recuperação de senha por e-mail, transferência entre locais como movimentação, preço por índice, agrupamento por modelo, forma de pagamento, desconto sobre o total, devolução e troca, cancelamento parcial, gestão de tipos de movimentação pela interface, exclusão física e modo offline. Na primeira versão também ficam fora as compras e as consultas operacionais (E10).

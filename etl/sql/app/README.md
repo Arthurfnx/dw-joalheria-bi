@@ -14,6 +14,16 @@ powershell -ExecutionPolicy Bypass -File scripts\run_etl_app.ps1           # car
 `APP_PGUSER` (padrão `nobreza_leitura_dw`) e `APP_PGPASSWORD`. O script recusa rodar se o papel de
 origem for superusuário ou puder ler `consignado_com`, `local_original` ou `app.usuario`.
 
+**Contra o Azure** (servidor `nobreza-dw.postgres.database.azure.com`): as mesmas variáveis ficam no arquivo
+local `.env.dw_azure`, ignorado pelo Git, com `PGSSLMODE` e `APP_PGSSLMODE` (SSL da origem). `DW_ARQUIVO_ENV`
+escolhe esse arquivo no lugar do `.env` da raiz:
+
+```powershell
+$env:DW_ARQUIVO_ENV='<caminho do .env.dw_azure>'; powershell -ExecutionPolicy Bypass -File scripts\run_etl_app.ps1
+```
+
+Evidência da execução no Azure (14 de 14 verificações, 0 rejeições) em `docs/etl_runbook.md`.
+
 ## Fluxo
 
 | Etapa | Arquivo | Efeito |
